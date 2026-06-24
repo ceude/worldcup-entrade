@@ -88,18 +88,10 @@ a{color:var(--gold)}
 #ribbon .track{
   position:absolute;top:0;left:0;display:flex;gap:30px;white-space:nowrap;
   height:34px;align-items:center;padding-left:30px;
-  /* CSS animation — works on mobile too */
-  animation:scroll 60s linear infinite;
   will-change:transform;
 }
-#ribbon .track:hover{animation-play-state:paused}
 #ribbon .it{font-size:12.5px;color:#cfe3d6;font-weight:600;display:inline-flex;gap:8px;align-items:center}
 #ribbon .it b{font-family:'Anton';font-weight:400;color:var(--gold);font-size:14px;letter-spacing:1px}
-@keyframes scroll{
-  0%{transform:translateX(0)}
-  100%{transform:translateX(-50%)}
-}
-@media(prefers-reduced-motion:reduce){#ribbon .track{animation:none}}
 
 /* ===== HEADER ===== */
 header.app{max-width:1180px;margin:0 auto;padding:22px 20px 6px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
@@ -936,29 +928,21 @@ function renderRibbon(){
   startRibbonScroll();
 }
 
-let ribbonRAF=null, ribbonPos=0, ribbonSpeed=0.6;
+let ribbonRAF=null, ribbonPos=0, ribbonLastTime=0;
+const RIBBON_SPEED=60; // px/saniye
 function startRibbonScroll(){
-  if(ribbonRAF) cancelAnimationFrame(ribbonRAF);
-  const track=$("#ribbonTrack");
+  if(ribbonRAF){ cancelAnimationFrame(ribbonRAF); ribbonRAF=null; }
+  const track=document.getElementById("ribbonTrack");
   if(!track) return;
-
-  // Önce CSS animasyonu dene — desteklemiyorsa JS'e geç
-  const style=window.getComputedStyle(track);
-  const animName=style.animationName;
-  if(animName && animName!=="none"){
-    // CSS animasyonu çalışıyor, JS'e gerek yok
-    return;
-  }
-
-  // JS tabanlı scroll (eski/bazı mobil tarayıcılar için)
-  ribbonPos=0;
-  function step(){
-    if(!track) return;
-    ribbonPos+=ribbonSpeed;
-    const totalW=track.scrollWidth/3; // 3 kopya olduğundan 1/3'ü tek döngü
-    if(ribbonPos>=totalW) ribbonPos=0;
-    track.style.transform=`translateX(-${ribbonPos}px)`;
-    track.style.animation="none"; // CSS animasyonunu devre dışı bırak
+  ribbonPos=0; ribbonLastTime=0;
+  function step(ts){
+    if(!ribbonLastTime) ribbonLastTime=ts;
+    const dt=Math.min(ts-ribbonLastTime, 50); // max 50ms adım (sekme arka plana geçerse spike olmasın)
+    ribbonLastTime=ts;
+    ribbonPos+=RIBBON_SPEED*(dt/1000);
+    const half=track.scrollWidth/3; // 3 kopya → 1/3'ü bir tur
+    if(ribbonPos>=half) ribbonPos-=half;
+    track.style.transform="translateX(-"+ribbonPos.toFixed(2)+"px)";
     ribbonRAF=requestAnimationFrame(step);
   }
   ribbonRAF=requestAnimationFrame(step);
