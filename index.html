@@ -379,6 +379,7 @@ nav.tabs button:hover{color:var(--ink)}
   <nav class="tabs">
     <button data-tab="matches" class="on">Maçlar</button>
     <button data-tab="how">Nasıl Oynanır</button>
+    <button data-tab="leaderboard">Lider Tablosu</button>
     <button data-tab="admin" id="adminTab" class="hidden">Yönetim</button>
   </nav>
 
@@ -414,6 +415,9 @@ nav.tabs button:hover{color:var(--ink)}
         </ul>
         <div class="note">💡 Tahminini yazdığın an ekranın altından <b>"kaydedildi"</b> bandı kayar. Ayrıca istediğinde kutucukları değiştirip tekrar kaydedebilirsin.</div>
       </section>
+
+      <!-- LEADERBOARD TAB -->
+      <section id="tab-leaderboard" class="hidden"></section>
 
       <!-- ADMIN -->
       <section id="tab-admin" class="admin hidden">
@@ -1027,9 +1031,33 @@ function switchTab(t){
   document.querySelectorAll("nav.tabs button").forEach(b=>b.classList.toggle("on",b.dataset.tab===t));
   show($("#tab-matches"),t==="matches");
   show($("#tab-how"),t==="how");
+  show($("#tab-leaderboard"),t==="leaderboard");
   show($("#tab-admin"),t==="admin");
   if(t==="admin"){ renderAdminFilters(); renderAdmin(); }
+  if(t==="leaderboard"){ renderLeaderboardTab(); }
 }
+function renderLeaderboardTab(){
+  const rows=profiles.map(p=>({...p,...userTotals(p.id)}))
+    .sort((a,b)=> b.pts-a.pts || b.exact-a.exact || a.username.localeCompare(b.username));
+  const box=$("#tab-leaderboard");
+  if(!box) return;
+  if(!rows.length){ box.innerHTML=`<div class="empty">Henüz oyuncu yok.</div>`; return; }
+  box.innerHTML=`<div class="panel" style="margin-top:4px">`+
+    rows.map((r,i)=>{
+      const rank=i+1, gcls=rank<=3?`g${rank}`:"";
+      const medal=rank===1?"🥇":rank===2?"🥈":rank===3?"🥉":rank;
+      const meCls=r.id===session.user.id?"me":"";
+      return `<div class="lbrow ${meCls}" data-uid="${r.id}">
+        <div class="rank ${gcls}">${medal}</div>
+        <div class="lbav">${esc(initials(r.username))}</div>
+        <div class="lbinfo"><div class="nm">${esc(r.username)}${r.is_admin?' ⚙️':''}</div>
+          <div class="st"><span class="e">${r.exact} tam</span> · <span class="o">${r.outc} sonuç</span> · ${r.graded} maç</div></div>
+        <div class="lbpts">${r.pts}<small>PUAN</small></div>
+      </div>`;
+    }).join("")+`</div>`;
+  box.querySelectorAll(".lbrow").forEach(el=>el.onclick=()=>openProfile(el.dataset.uid));
+}
+
 function renderAll(){
   renderRibbon(); renderStageFilters(); renderGroupFilters(); renderSortFilters(); renderMatches(); renderLeaderboard();
 }
