@@ -34,14 +34,20 @@ body{
 h1,h2,h3,.disp{font-family:'Anton',sans-serif;font-weight:400;letter-spacing:.5px;text-transform:uppercase}
 button{font-family:inherit;cursor:pointer}
 input{font-family:inherit}
+input[type=number]::-webkit-outer-spin-button,
+input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+input[type=number]{-moz-appearance:textfield}
 a{color:var(--gold)}
 
 /* ===== TOP RIBBON TICKER ===== */
 #ribbon{position:sticky;top:0;z-index:40;background:linear-gradient(90deg,#0a1611,#0e2218,#0a1611);
   border-bottom:1px solid var(--line);overflow:hidden;height:34px;display:flex;align-items:center}
 #ribbon .tag{flex:0 0 auto;background:var(--energy);color:#1a0a06;font-weight:800;font-size:11px;
-  letter-spacing:1px;padding:5px 10px;height:34px;display:flex;align-items:center;text-transform:uppercase}
-#ribbon .track{display:flex;gap:30px;white-space:nowrap;animation:scroll 60s linear infinite;padding-left:30px}
+  letter-spacing:1px;padding:5px 10px;height:34px;display:flex;align-items:center;text-transform:uppercase;
+  position:relative;z-index:2}
+#ribbon .viewport{flex:1;min-width:0;height:34px;overflow:hidden;position:relative}
+#ribbon .track{position:absolute;top:0;left:0;display:flex;gap:30px;white-space:nowrap;
+  animation:scroll 60s linear infinite;padding-left:30px;height:34px;align-items:center}
 #ribbon .track:hover{animation-play-state:paused}
 #ribbon .it{font-size:12.5px;color:#cfe3d6;font-weight:600;display:inline-flex;gap:8px;align-items:center}
 #ribbon .it b{font-family:'Anton';font-weight:400;color:var(--gold);font-size:14px;letter-spacing:1px}
@@ -187,6 +193,10 @@ nav.tabs button:hover{color:var(--ink)}
   color:var(--ink);border-radius:8px;font-family:'Anton';font-size:18px}
 .admin .arow .tin{font-family:inherit;font-size:13px;text-align:left;padding:0 8px;height:34px}
 .admin .teamset{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px}
+.admin .kickoffset{margin-bottom:6px}
+.admin .kickoffset input{width:100%;height:34px;background:#06100c;border:1px solid var(--line2);
+  color:var(--ink);border-radius:8px;font-family:inherit;font-size:13px;padding:0 8px}
+.admin .kickoffset input::-webkit-calendar-picker-indicator{filter:invert(1);cursor:pointer}
 
 /* ===== LOGIN ===== */
 .authwrap{min-height:100vh;display:grid;place-items:center;padding:24px}
@@ -284,7 +294,7 @@ nav.tabs button:hover{color:var(--ink)}
 
 <!-- ================= APP ================= -->
 <div id="appScreen" class="hidden">
-  <div id="ribbon"><div class="tag">⚽ CANLI SKORLAR</div><div class="track" id="ribbonTrack"></div></div>
+  <div id="ribbon"><div class="tag">⚽ CANLI SKORLAR</div><div class="viewport"><div class="track" id="ribbonTrack"></div></div></div>
 
   <header class="app">
     <div class="brand">
@@ -311,6 +321,7 @@ nav.tabs button:hover{color:var(--ink)}
       <section id="tab-matches">
         <div class="filters" id="stageFilters"></div>
         <div class="filters" id="groupFilters"></div>
+        <div class="filters" id="sortFilters"></div>
         <div id="matchList"><div class="loading"><div class="spin"></div>Maçlar yükleniyor…</div></div>
       </section>
 
@@ -437,6 +448,7 @@ const initials = u => (u||"?").trim().slice(0,2).toUpperCase();
 let sb=null, session=null, me=null;
 let matches=[], predsMine={}, predsAll=[], profiles=[];
 let curStage="group", curGroup="ALL", adminStage="group";
+let sortMode="date"; // "date" = tarihe göre (varsayılan), "group" = gruba göre
 let registerMode=false;
 
 const $  = s => document.querySelector(s);
@@ -459,6 +471,28 @@ function fmtKick(iso){
   return `${day} · ${tm}`;
 }
 function dayKey(iso){ return new Date(iso).toLocaleDateString("tr-TR",{timeZone:TZ,weekday:"long",day:"2-digit",month:"long"}); }
+
+// ISO (UTC) zamanı, <input type="datetime-local"> için Almanya saatine çevirir (örn. "2026-06-20T20:00")
+function toBerlinInputValue(iso){
+  const d=new Date(iso);
+  const fmt=new Intl.DateTimeFormat("en-GB",{timeZone:TZ,year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",hour12:false});
+  const map={}; fmt.formatToParts(d).forEach(p=>map[p.type]=p.value);
+  const hh=map.hour==="24"?"00":map.hour;
+  return `${map.year}-${map.month}-${map.day}T${hh}:${map.minute}`;
+}
+// <input type="datetime-local"> değerini (Almanya saati niyetiyle yazılmış) doğru UTC ISO'ya çevirir (yaz/kış saatini otomatik hesaplar)
+function berlinInputToUTCISO(dtLocalStr){
+  const [datePart,timePart]=dtLocalStr.split("T");
+  const [Y,M,D]=datePart.split("-").map(Number);
+  const [h,mn]=timePart.split(":").map(Number);
+  let guess=new Date(Date.UTC(Y,M-1,D,h,mn,0));
+  const fmt=new Intl.DateTimeFormat("en-US",{timeZone:TZ,hour12:false,year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",second:"2-digit"});
+  const map={}; fmt.formatToParts(guess).forEach(p=>map[p.type]=p.value);
+  const berlinHour = map.hour==="24"?0:+map.hour;
+  const berlinAsUTC=Date.UTC(+map.year,+map.month-1,+map.day,berlinHour,+map.minute,+map.second);
+  const offsetMs=berlinAsUTC-guess.getTime();
+  return new Date(guess.getTime()-offsetMs).toISOString();
+}
 
 /* ====================================================================
    5) PUANLAMA
@@ -636,12 +670,19 @@ function renderMatches(){
   const list=$("#matchList");
   let ms=matches.filter(m=>m.stage===curStage);
   if(curStage==="group" && curGroup!=="ALL") ms=ms.filter(m=>m.grp===curGroup);
+  ms=[...ms];
+  const groupMode = curStage==="group" && sortMode==="group" && curGroup==="ALL";
+  if(groupMode){
+    ms.sort((a,b)=> (a.grp||"").localeCompare(b.grp||"") || new Date(a.kickoff)-new Date(b.kickoff));
+  }else{
+    ms.sort((a,b)=> new Date(a.kickoff)-new Date(b.kickoff));
+  }
   if(!ms.length){ list.innerHTML=`<div class="empty">Bu sekmede maç yok.</div>`; return; }
-  // gün gün grupla
-  let html="", lastDay=null;
+  // grup modunda grup başlıklarına, tarih modunda gün başlıklarına göre böl
+  let html="", lastKey=null;
   ms.forEach(m=>{
-    const dk=dayKey(m.kickoff);
-    if(dk!==lastDay){ html+=`<div class="dayhdr">${esc(dk)}</div>`; lastDay=dk; }
+    const key = groupMode ? `Grup ${m.grp||"?"}` : dayKey(m.kickoff);
+    if(key!==lastKey){ html+=`<div class="dayhdr">${esc(key)}</div>`; lastKey=key; }
     html+=matchCard(m);
   });
   list.innerHTML=html;
@@ -652,7 +693,17 @@ function renderStageFilters(){
   $("#stageFilters").innerHTML = STAGES.filter(s=>present.has(s.k)).map(s=>
     `<button class="pill ${s.k===curStage?"on":""}" data-stage="${s.k}">${s.label}</button>`).join("");
   $("#stageFilters").querySelectorAll(".pill").forEach(b=>b.onclick=()=>{
-    curStage=b.dataset.stage; curGroup="ALL"; renderStageFilters(); renderGroupFilters(); renderMatches();
+    curStage=b.dataset.stage; curGroup="ALL"; renderStageFilters(); renderGroupFilters(); renderSortFilters(); renderMatches();
+  });
+}
+function renderSortFilters(){
+  const box=$("#sortFilters");
+  if(curStage!=="group"){ box.innerHTML=""; return; }
+  box.innerHTML = `
+    <button class="pill ${sortMode==="date"?"on":""}" data-sort="date">📅 Tarihe göre</button>
+    <button class="pill ${sortMode==="group"?"on":""}" data-sort="group">🔤 Gruba göre</button>`;
+  box.querySelectorAll(".pill").forEach(b=>b.onclick=()=>{
+    sortMode=b.dataset.sort; renderSortFilters(); renderMatches();
   });
 }
 function renderGroupFilters(){
@@ -810,8 +861,11 @@ function renderAdmin(){
     const hn=m.team_home?trName(m.team_home):(m.slot_home||"?");
     const an=m.team_away?trName(m.team_away):(m.slot_away||"?");
     return `<div style="margin-bottom:8px">
-      <div style="font-size:11px;color:var(--muted);font-weight:700;margin:0 2px 4px">${esc(label)} · ${fmtKick(m.kickoff)}</div>
+      <div style="font-size:11px;color:var(--muted);font-weight:700;margin:0 2px 4px">${esc(label)} · şu an: ${fmtKick(m.kickoff)} (DE)</div>
       ${teamset}
+      <div class="kickoffset">
+        <input type="datetime-local" data-id="${m.id}" data-f="kickoff" value="${toBerlinInputValue(m.kickoff)}">
+      </div>
       <div class="arow">
         <div class="nm">${esc(hn)}</div>
         <input data-id="${m.id}" data-f="home_score" type="number" min="0" value="${m.home_score??""}">
@@ -828,9 +882,11 @@ async function adminSave(id,btn){
   const get=f=>{const el=$(`[data-id="${id}"][data-f="${f}"]`);return el?el.value.trim():null;};
   const hs=get("home_score"), as=get("away_score");
   const th=get("team_home"), ta=get("team_away");
+  const ko=get("kickoff");
   const patch={};
   if(th!==null) patch.team_home = th||null;
   if(ta!==null) patch.team_away = ta||null;
+  if(ko){ try{ patch.kickoff = berlinInputToUTCISO(ko); }catch(e){ /* geçersiz tarih girilmişse görmezden gel */ } }
   if(hs!==""&&hs!=null && as!==""&&as!=null){
     patch.home_score=parseInt(hs,10); patch.away_score=parseInt(as,10); patch.finished=true;
   }else{
@@ -842,7 +898,7 @@ async function adminSave(id,btn){
     if(error) throw error;
     Object.assign(matches.find(m=>m.id===id),patch);
     band("Maç güncellendi","Yönetim");
-    renderLeaderboard(); renderRibbon();
+    renderLeaderboard(); renderRibbon(); renderMatches(); renderAdmin();
   }catch(err){ band((err&&err.message)||"Hata","Yönetim",true); }
   finally{ btn.disabled=false; btn.textContent="Kaydet"; }
 }
@@ -858,7 +914,7 @@ function switchTab(t){
   if(t==="admin"){ renderAdminFilters(); renderAdmin(); }
 }
 function renderAll(){
-  renderRibbon(); renderStageFilters(); renderGroupFilters(); renderMatches(); renderLeaderboard();
+  renderRibbon(); renderStageFilters(); renderGroupFilters(); renderSortFilters(); renderMatches(); renderLeaderboard();
 }
 async function enterApp(){
   show($("#authScreen"),false); show($("#setupScreen"),false); show($("#appScreen"),true);
