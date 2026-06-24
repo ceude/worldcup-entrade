@@ -1,0 +1,902 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dünya Kupası 2026 — Tahmin Ligi</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8F%86%3C/text%3E%3C/svg%3E">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{
+  --bg:#091310; --bg2:#0b1a14; --panel:#0f2419; --panel2:#0c1d15;
+  --line:rgba(255,255,255,.08); --line2:rgba(255,255,255,.14);
+  --gold:#f5c542; --gold2:#ffe08a;
+  --ok:#2bd575; --okdim:#14361f; --outc:#46b6ff; --outcdim:#10293b;
+  --bad:#ff5160; --baddim:#3a141a; --energy:#ff5a3c;
+  --ink:#eef6ef; --muted:#84a395;
+  --r:16px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:
+    radial-gradient(1200px 600px at 80% -10%, rgba(245,197,66,.10), transparent 60%),
+    radial-gradient(900px 500px at -10% 10%, rgba(43,213,117,.10), transparent 55%),
+    var(--bg);
+  color:var(--ink);
+  font-family:'Plus Jakarta Sans',system-ui,sans-serif;
+  -webkit-font-smoothing:antialiased;
+  min-height:100vh;
+}
+h1,h2,h3,.disp{font-family:'Anton',sans-serif;font-weight:400;letter-spacing:.5px;text-transform:uppercase}
+button{font-family:inherit;cursor:pointer}
+input{font-family:inherit}
+a{color:var(--gold)}
+
+/* ===== TOP RIBBON TICKER ===== */
+#ribbon{position:sticky;top:0;z-index:40;background:linear-gradient(90deg,#0a1611,#0e2218,#0a1611);
+  border-bottom:1px solid var(--line);overflow:hidden;height:34px;display:flex;align-items:center}
+#ribbon .tag{flex:0 0 auto;background:var(--energy);color:#1a0a06;font-weight:800;font-size:11px;
+  letter-spacing:1px;padding:5px 10px;height:34px;display:flex;align-items:center;text-transform:uppercase}
+#ribbon .track{display:flex;gap:30px;white-space:nowrap;animation:scroll 60s linear infinite;padding-left:30px}
+#ribbon .track:hover{animation-play-state:paused}
+#ribbon .it{font-size:12.5px;color:#cfe3d6;font-weight:600;display:inline-flex;gap:8px;align-items:center}
+#ribbon .it b{font-family:'Anton';font-weight:400;color:var(--gold);font-size:14px;letter-spacing:1px}
+@keyframes scroll{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+@media(prefers-reduced-motion:reduce){#ribbon .track{animation:none}}
+
+/* ===== HEADER ===== */
+header.app{max-width:1180px;margin:0 auto;padding:22px 20px 6px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:12px}
+.brand .trophy{width:46px;height:46px;border-radius:12px;display:grid;place-items:center;font-size:24px;
+  background:linear-gradient(160deg,#1c3a28,#0c1d15);border:1px solid var(--line2);
+  box-shadow:0 6px 22px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.06)}
+.brand h1{margin:0;font-size:26px;line-height:.95;color:var(--ink)}
+.brand h1 .y{color:var(--gold)}
+.brand .sub{font-size:11.5px;letter-spacing:2px;color:var(--muted);font-weight:700;text-transform:uppercase;margin-top:3px}
+.spacer{flex:1}
+.userchip{display:flex;align-items:center;gap:10px;background:var(--panel);border:1px solid var(--line);
+  border-radius:999px;padding:6px 6px 6px 14px}
+.userchip .nm{font-weight:700;font-size:14px}
+.userchip .av{width:30px;height:30px;border-radius:50%;background:linear-gradient(160deg,var(--gold),#b8860b);
+  color:#241400;display:grid;place-items:center;font-weight:800;font-size:14px}
+.btn{border:1px solid var(--line2);background:#13261c;color:var(--ink);border-radius:10px;padding:9px 14px;font-weight:700;font-size:13.5px}
+.btn:hover{background:#173024}
+.btn.gold{background:linear-gradient(160deg,var(--gold),#d9a91f);color:#241400;border:none}
+.btn.gold:hover{filter:brightness(1.06)}
+.btn.ghost{background:transparent}
+.btn.sm{padding:6px 10px;font-size:12.5px}
+
+/* ===== TABS ===== */
+nav.tabs{max-width:1180px;margin:14px auto 0;padding:0 20px;display:flex;gap:6px;border-bottom:1px solid var(--line)}
+nav.tabs button{background:none;border:none;color:var(--muted);font-weight:700;font-size:14px;padding:12px 14px;
+  border-bottom:2px solid transparent;margin-bottom:-1px}
+nav.tabs button.on{color:var(--ink);border-color:var(--gold)}
+nav.tabs button:hover{color:var(--ink)}
+
+/* ===== LAYOUT ===== */
+.wrap{max-width:1180px;margin:18px auto 90px;padding:0 20px;display:grid;grid-template-columns:1fr 348px;gap:22px;align-items:start}
+@media(max-width:900px){.wrap{grid-template-columns:1fr}}
+.col-right{position:sticky;top:46px}
+@media(max-width:900px){.col-right{position:static}}
+
+/* ===== FILTER PILLS ===== */
+.filters{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:14px}
+.pill{background:var(--panel);border:1px solid var(--line);color:var(--muted);border-radius:999px;
+  padding:7px 13px;font-size:12.5px;font-weight:700}
+.pill.on{background:var(--gold);color:#241400;border-color:var(--gold)}
+.pill:hover{color:var(--ink)}
+.pill.on:hover{color:#241400}
+
+/* ===== MATCH CARD ===== */
+.daygroup{margin-bottom:8px}
+.dayhdr{font-family:'Anton';font-size:13px;letter-spacing:2px;color:var(--gold);margin:18px 2px 10px}
+.match{background:linear-gradient(180deg,var(--panel),var(--panel2));border:1px solid var(--line);
+  border-radius:var(--r);padding:14px 16px;margin-bottom:11px;position:relative;overflow:hidden}
+.match::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--line2)}
+.match.fin::before{background:var(--ok)}
+.match.live::before{background:var(--energy)}
+.match.open::before{background:var(--gold)}
+.mtop{display:flex;align-items:center;gap:10px;margin-bottom:11px;font-size:11.5px}
+.mtop .meta{color:var(--muted);font-weight:600}
+.mtop .meta b{color:#c7dccf}
+.badge{margin-left:auto;font-size:10.5px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;
+  padding:4px 8px;border-radius:6px;border:1px solid var(--line2)}
+.badge.fin{background:var(--okdim);color:var(--ok);border-color:transparent}
+.badge.live{background:#3a1408;color:var(--energy);border-color:transparent}
+.badge.open{background:#322a08;color:var(--gold2);border-color:transparent}
+.badge.lock{background:#1b1422;color:#b79ad6;border-color:transparent}
+.mrow{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:12px}
+.team{display:flex;align-items:center;gap:9px;min-width:0}
+.team.away{flex-direction:row-reverse;text-align:right}
+.team .fl{width:30px;height:22px;border-radius:4px;object-fit:cover;flex:0 0 auto;
+  box-shadow:0 1px 4px rgba(0,0,0,.4);background:#0a1611}
+.team .nm{font-weight:700;font-size:15.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.team .fl.ph{display:grid;place-items:center;font-size:13px;color:var(--muted);background:#0c1d15;border:1px dashed var(--line2)}
+.scorebox{display:flex;align-items:center;gap:7px}
+.si{width:46px;height:50px;text-align:center;font-family:'Anton';font-size:26px;color:var(--ink);
+  background:#06100c;border:1px solid var(--line2);border-radius:10px;outline:none;padding:0}
+.si:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(245,197,66,.18)}
+.si:disabled{opacity:.85;color:var(--gold2)}
+.si.act{background:#0e1f16}
+.dash{font-family:'Anton';font-size:22px;color:var(--muted)}
+.actual{display:flex;flex-direction:column;align-items:center;gap:2px;min-width:70px}
+.actual .sc{font-family:'Anton';font-size:30px;letter-spacing:2px;line-height:1}
+.actual .lab{font-size:9px;letter-spacing:1.5px;color:var(--muted);font-weight:800;text-transform:uppercase}
+.mfoot{display:flex;align-items:center;gap:8px;margin-top:11px;font-size:12px;color:var(--muted);min-height:18px}
+.mfoot .yp{margin-left:auto;font-weight:800;font-size:12px;padding:3px 9px;border-radius:7px}
+.yp.exact{background:var(--okdim);color:var(--ok)}
+.yp.outc{background:var(--outcdim);color:var(--outc)}
+.yp.bad{background:var(--baddim);color:var(--bad)}
+.yp.wait{background:#1b2620;color:var(--muted)}
+.yourpred{font-weight:700;color:#bcd3c4}
+.placeholder-slot{color:#6c8a7c;font-style:italic;font-weight:600}
+
+/* ===== RIGHT: LEADERBOARD ===== */
+.panel{background:linear-gradient(180deg,var(--panel),var(--panel2));border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.panel .ph{padding:14px 16px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:9px}
+.panel .ph h3{margin:0;font-size:16px}
+.panel .ph .ico{font-size:18px}
+.lbrow{display:flex;align-items:center;gap:11px;padding:11px 16px;border-bottom:1px solid var(--line);cursor:pointer}
+.lbrow:hover{background:#12281d}
+.lbrow:last-child{border-bottom:none}
+.rank{font-family:'Anton';font-size:18px;width:26px;text-align:center;color:var(--muted)}
+.rank.g1{color:var(--gold)}.rank.g2{color:#cfd6dd}.rank.g3{color:#d99a5b}
+.lbav{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;font-weight:800;font-size:14px;
+  background:linear-gradient(160deg,#1e3c2a,#0e2017);border:1px solid var(--line2);color:#cfe3d6}
+.lbrow.me .lbav{background:linear-gradient(160deg,var(--gold),#b8860b);color:#241400;border:none}
+.lbinfo{flex:1;min-width:0}
+.lbinfo .nm{font-weight:700;font-size:14.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lbinfo .st{font-size:11px;color:var(--muted);font-weight:600}
+.lbinfo .st .e{color:var(--ok)}.lbinfo .st .o{color:var(--outc)}
+.lbpts{font-family:'Anton';font-size:22px;color:var(--gold)}
+.lbpts small{font-size:10px;color:var(--muted);font-weight:700;display:block;text-align:right;letter-spacing:1px}
+
+/* scoring mini card */
+.scoringcard{padding:15px 16px}
+.scoringcard .row{display:flex;align-items:center;gap:11px;padding:9px 0;border-bottom:1px dashed var(--line)}
+.scoringcard .row:last-child{border-bottom:none}
+.scoringcard .pts{font-family:'Anton';font-size:20px;min-width:62px;text-align:center;border-radius:8px;padding:5px 0}
+.pts.p30{background:var(--outcdim);color:var(--outc)}
+.pts.p100{background:var(--okdim);color:var(--ok)}
+.scoringcard .row .d{font-size:12.5px;color:#c7dccf;font-weight:600}
+.scoringcard .row .d b{color:var(--ink)}
+
+/* ===== HOW TO PLAY ===== */
+.howto{max-width:760px}
+.howto .lead{font-size:15px;line-height:1.6;color:#cbe0d2}
+.howto h2{font-size:22px;margin:26px 0 12px}
+.bigscore{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:16px 0}
+@media(max-width:560px){.bigscore{grid-template-columns:1fr}}
+.bigscore .b{background:linear-gradient(180deg,var(--panel),var(--panel2));border:1px solid var(--line);border-radius:14px;padding:18px}
+.bigscore .b .n{font-family:'Anton';font-size:40px}
+.bigscore .b.a .n{color:var(--outc)}.bigscore .b.b .n{color:var(--ok)}
+.bigscore .b .t{font-weight:800;font-size:14px;margin:4px 0 6px}
+.bigscore .b .x{font-size:13px;color:var(--muted);line-height:1.5}
+.howto ul{padding-left:18px;line-height:1.8;color:#cbe0d2;font-size:14px}
+.note{background:#10201a;border:1px solid var(--line);border-left:3px solid var(--gold);border-radius:10px;padding:13px 15px;font-size:13.5px;color:#cbe0d2;margin-top:14px}
+
+/* ===== ADMIN ===== */
+.admin .arow{display:grid;grid-template-columns:1fr 70px 18px 70px 90px;gap:8px;align-items:center;
+  background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:8px}
+.admin .arow .nm{font-weight:700;font-size:13.5px}
+.admin .arow input{width:100%;height:38px;text-align:center;background:#06100c;border:1px solid var(--line2);
+  color:var(--ink);border-radius:8px;font-family:'Anton';font-size:18px}
+.admin .arow .tin{font-family:inherit;font-size:13px;text-align:left;padding:0 8px;height:34px}
+.admin .teamset{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px}
+
+/* ===== LOGIN ===== */
+.authwrap{min-height:100vh;display:grid;place-items:center;padding:24px}
+.authcard{width:100%;max-width:400px;background:linear-gradient(180deg,var(--panel),var(--panel2));
+  border:1px solid var(--line);border-radius:20px;padding:30px 26px;box-shadow:0 30px 80px rgba(0,0,0,.5)}
+.authcard .lg{display:flex;align-items:center;gap:12px;margin-bottom:6px}
+.authcard .lg .t{width:48px;height:48px;border-radius:13px;display:grid;place-items:center;font-size:26px;
+  background:linear-gradient(160deg,#1c3a28,#0c1d15);border:1px solid var(--line2)}
+.authcard h1{font-size:24px;margin:0;line-height:.95}
+.authcard h1 .y{color:var(--gold)}
+.authcard .tag{font-size:11px;letter-spacing:2px;color:var(--muted);font-weight:700;margin:2px 0 22px}
+.field{margin-bottom:13px}
+.field label{display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bottom:6px;letter-spacing:.4px}
+.field input{width:100%;height:46px;background:#06100c;border:1px solid var(--line2);color:var(--ink);
+  border-radius:11px;padding:0 14px;font-size:15px;outline:none}
+.field input:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(245,197,66,.16)}
+.authbtn{width:100%;height:48px;border:none;border-radius:11px;font-weight:800;font-size:15px;
+  background:linear-gradient(160deg,var(--gold),#d9a91f);color:#241400;margin-top:6px}
+.authbtn:hover{filter:brightness(1.05)}
+.authswitch{text-align:center;margin-top:16px;font-size:13.5px;color:var(--muted)}
+.authswitch button{background:none;border:none;color:var(--gold);font-weight:800;font-size:13.5px}
+.autherr{background:var(--baddim);color:#ff9aa3;border-radius:10px;padding:10px 12px;font-size:13px;font-weight:600;margin-bottom:14px;display:none}
+
+/* ===== SAVE BAND (slides up from bottom) ===== */
+#band{position:fixed;left:50%;bottom:22px;transform:translate(-50%,160%);z-index:80;
+  display:flex;align-items:center;gap:12px;background:linear-gradient(160deg,#123c25,#0c2417);
+  border:1px solid var(--ok);border-radius:14px;padding:13px 20px;min-width:280px;max-width:90vw;
+  box-shadow:0 20px 50px rgba(0,0,0,.5);transition:transform .45s cubic-bezier(.2,.9,.25,1.4)}
+#band.show{transform:translate(-50%,0)}
+#band .ck{width:30px;height:30px;border-radius:50%;background:var(--ok);color:#04210f;display:grid;place-items:center;font-weight:900;flex:0 0 auto}
+#band .tx{font-weight:700;font-size:14px}
+#band .tx small{display:block;color:#9cc7ad;font-weight:600;font-size:11.5px;letter-spacing:.5px}
+#band.err{background:linear-gradient(160deg,#3a1418,#240d10);border-color:var(--bad)}
+#band.err .ck{background:var(--bad);color:#2a0a0d}
+
+/* ===== MODAL ===== */
+#modal{position:fixed;inset:0;z-index:90;background:rgba(4,10,7,.7);backdrop-filter:blur(4px);
+  display:none;place-items:center;padding:20px}
+#modal.show{display:grid}
+.mcard{width:100%;max-width:560px;max-height:86vh;overflow:auto;background:linear-gradient(180deg,#0f2419,#0a1812);
+  border:1px solid var(--line2);border-radius:20px}
+.mcard .mh{position:sticky;top:0;background:#0f2419;padding:18px 20px;border-bottom:1px solid var(--line);
+  display:flex;align-items:center;gap:13px;z-index:2}
+.mcard .mh .av{width:42px;height:42px;border-radius:50%;display:grid;place-items:center;font-weight:800;
+  background:linear-gradient(160deg,var(--gold),#b8860b);color:#241400;font-size:17px}
+.mcard .mh h3{margin:0;font-size:19px}
+.mcard .mh .s{font-size:12px;color:var(--muted);font-weight:700;margin-top:2px}
+.mcard .mh .x{margin-left:auto;background:#13261c;border:1px solid var(--line2);color:var(--ink);
+  width:34px;height:34px;border-radius:9px;font-size:18px}
+.pgrid{padding:14px 18px 22px}
+.pg{display:grid;grid-template-columns:auto 1fr auto auto;gap:10px;align-items:center;padding:10px 12px;
+  border-radius:11px;margin-bottom:7px;border:1px solid var(--line)}
+.pg.exact{background:var(--okdim);border-color:rgba(43,213,117,.3)}
+.pg.outc{background:var(--outcdim);border-color:rgba(70,182,255,.25)}
+.pg.bad{background:var(--baddim);border-color:rgba(255,81,96,.25)}
+.pg.none{background:#141a17}
+.pg .mt{font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pg .mt small{color:var(--muted);font-weight:600}
+.pg .pp{font-family:'Anton';font-size:16px;letter-spacing:1px;color:#cbe0d2}
+.pg .aa{font-family:'Anton';font-size:16px;letter-spacing:1px}
+.pg .pt{font-weight:800;font-size:13px;min-width:42px;text-align:right}
+.pg.exact .pt{color:var(--ok)}.pg.outc .pt{color:var(--outc)}.pg.bad .pt,.pg.none .pt{color:var(--bad)}
+.legend{display:flex;gap:14px;flex-wrap:wrap;padding:0 18px 16px;font-size:11.5px;color:var(--muted);font-weight:700}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{width:11px;height:11px;border-radius:3px;display:inline-block}
+.lg-e{background:var(--ok)}.lg-o{background:var(--outc)}.lg-b{background:var(--bad)}
+
+.empty{text-align:center;color:var(--muted);padding:50px 20px;font-weight:600}
+.setup{max-width:640px;margin:50px auto;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:26px}
+.setup code{background:#06100c;border:1px solid var(--line2);border-radius:6px;padding:2px 6px;font-size:13px}
+.loading{display:grid;place-items:center;min-height:60vh;color:var(--muted);font-weight:700;gap:14px}
+.spin{width:34px;height:34px;border:3px solid var(--line2);border-top-color:var(--gold);border-radius:50%;animation:sp 1s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+.hidden{display:none!important}
+</style>
+</head>
+<body>
+
+<!-- ================= AUTH ================= -->
+<div id="authScreen" class="authwrap hidden">
+  <div class="authcard">
+    <div class="lg"><div class="t">🏆</div>
+      <div><h1>DÜNYA KUPASI <span class="y">2026</span></h1></div>
+    </div>
+    <div class="tag">TAHMİN LİGİ · ARKADAŞLAR ARASI</div>
+    <div class="autherr" id="authErr"></div>
+    <div class="field"><label>Kullanıcı adı</label>
+      <input id="auUser" autocomplete="username" placeholder="ör. uraz" maxlength="24"></div>
+    <div class="field"><label>Şifre</label>
+      <input id="auPass" type="password" autocomplete="current-password" placeholder="••••••••"></div>
+    <button class="authbtn" id="auBtn">Giriş yap</button>
+    <div class="authswitch" id="auSwitch">Hesabın yok mu? <button id="auToggle">Kayıt ol</button></div>
+  </div>
+</div>
+
+<!-- ================= APP ================= -->
+<div id="appScreen" class="hidden">
+  <div id="ribbon"><div class="tag">⚽ CANLI SKORLAR</div><div class="track" id="ribbonTrack"></div></div>
+
+  <header class="app">
+    <div class="brand">
+      <div class="trophy">🏆</div>
+      <div><h1>DÜNYA KUPASI <span class="y">2026</span></h1>
+        <div class="sub">Tahmin Ligi</div></div>
+    </div>
+    <div class="spacer"></div>
+    <button class="btn ghost sm" id="refreshBtn" title="Yenile">⟳ Yenile</button>
+    <div class="userchip"><span class="nm" id="meName">—</span>
+      <span class="av" id="meAv">?</span>
+      <button class="btn sm ghost" id="logoutBtn">Çıkış</button></div>
+  </header>
+
+  <nav class="tabs">
+    <button data-tab="matches" class="on">Maçlar</button>
+    <button data-tab="how">Nasıl Oynanır</button>
+    <button data-tab="admin" id="adminTab" class="hidden">Yönetim</button>
+  </nav>
+
+  <div class="wrap">
+    <main class="col-left">
+      <!-- MATCHES -->
+      <section id="tab-matches">
+        <div class="filters" id="stageFilters"></div>
+        <div class="filters" id="groupFilters"></div>
+        <div id="matchList"><div class="loading"><div class="spin"></div>Maçlar yükleniyor…</div></div>
+      </section>
+
+      <!-- HOW TO -->
+      <section id="tab-how" class="howto hidden">
+        <h2>Nasıl Oynanır</h2>
+        <p class="lead">Her maç için bir skor tahmini yaz (örn. <b style="color:var(--ink)">İspanya 3 – 0 Gana</b>).
+          Maç başlamadan önce dilediğin kadar değiştirebilirsin. Maç saati gelince tahmin kilitlenir.</p>
+
+        <div class="bigscore">
+          <div class="b a"><div class="n">30</div><div class="t">Sonucu bildin</div>
+            <div class="x">Kazananı ya da beraberliği doğru tahmin edersen 30 puan. Skoru tutturmana gerek yok.</div></div>
+          <div class="b b"><div class="n">30+70</div><div class="t">Skoru tam bildin</div>
+            <div class="x">Hem sonucu hem de net skoru bilirsen 30 puanın üstüne 70 puan daha → toplam <b style="color:var(--ink)">100 puan</b>.</div></div>
+        </div>
+
+        <h2>Kurallar</h2>
+        <ul>
+          <li>Tahminler <b style="color:var(--ink)">Almanya saati</b> (Europe/Berlin) ile çalışır. Maç saati başlayınca skor değiştirilemez.</li>
+          <li>İki takımı da belli olmayan maçlara (örn. henüz oynanmamış Son 16) tahmin yapılamaz — takımlar belli olunca açılır.</li>
+          <li>Başkalarının tahminlerini ancak maç başladıktan sonra görebilirsin. Kopya yok 😉</li>
+          <li>Lider tablosunda bir isme tıkla → o kişinin tüm tahminlerini, neyde sonucu neyde skoru bildiğini gör.</li>
+        </ul>
+        <div class="note">💡 Tahminini yazdığın an ekranın altından <b>“kaydedildi”</b> bandı kayar. Ayrıca istediğinde kutucukları değiştirip tekrar kaydedebilirsin.</div>
+      </section>
+
+      <!-- ADMIN -->
+      <section id="tab-admin" class="admin hidden">
+        <h2>Yönetim — Skor &amp; Takım Gir</h2>
+        <p style="color:var(--muted);font-size:13.5px;max-width:640px">
+          Biten maçların skorunu gir (otomatik “bitti” işaretlenir). Eleme maçlarında takımlar belli oldukça
+          isimleri yaz (İngilizce isimler — örn. <code style="font-size:12px">Spain</code>, <code style="font-size:12px">Brazil</code>).
+          Bayraklar ve Türkçe isimler otomatik gelir.</p>
+        <div class="filters" id="adminStageFilters"></div>
+        <div id="adminList"></div>
+      </section>
+    </main>
+
+    <!-- RIGHT COLUMN -->
+    <aside class="col-right">
+      <div class="panel" style="margin-bottom:16px">
+        <div class="ph"><span class="ico">🏅</span><h3>Lider Tablosu</h3></div>
+        <div id="leaderboard"><div style="padding:24px;text-align:center;color:var(--muted)">Yükleniyor…</div></div>
+      </div>
+      <div class="panel">
+        <div class="ph"><span class="ico">🎯</span><h3>Puanlama</h3></div>
+        <div class="scoringcard">
+          <div class="row"><div class="pts p30">30</div>
+            <div class="d"><b>Sonucu bil</b> — kazanan / beraberlik doğru</div></div>
+          <div class="row"><div class="pts p100">100</div>
+            <div class="d"><b>Skoru tam bil</b> — 30 + 70 bonus</div></div>
+        </div>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<!-- SETUP NOTICE -->
+<div id="setupScreen" class="hidden"><div class="setup">
+  <h2 style="margin-top:0">⚙️ Kurulum gerekli</h2>
+  <p style="color:#cbe0d2;line-height:1.6;font-size:14px">Bu dosyayı çalıştırmadan önce iki şey lazım:</p>
+  <ol style="color:#cbe0d2;line-height:1.9;font-size:14px">
+    <li>Supabase'de <code>supabase_setup.sql</code> dosyasını çalıştır.</li>
+    <li>Bu HTML dosyasının en üstündeki <code>SUPABASE_URL</code> ve <code>SUPABASE_ANON_KEY</code> değerlerini kendi projendekiyle değiştir.</li>
+    <li>Supabase &gt; Authentication &gt; Sign In / Providers &gt; Email içinde <b>“Confirm email”</b> seçeneğini kapat (kullanıcı adıyla giriş için).</li>
+  </ol>
+</div></div>
+
+<!-- save band + modal -->
+<div id="band"><div class="ck">✓</div><div class="tx" id="bandTx"></div></div>
+<div id="modal"><div class="mcard" id="modalCard"></div></div>
+
+<script>
+/* ====================================================================
+   1) AYARLAR  —  Buraya kendi Supabase bilgilerini yaz
+   ==================================================================== */
+const SUPABASE_URL  = "https://kuuwdpzyeovkfjoradwq.supabase.co/rest/v1/";
+const SUPABASE_ANON_KEY = "sb_publishable_M-QnplymNuUQVcbHQr0_RQ_wLh2YFOp";
+const EMAIL_DOMAIN = "tahmin.local";   // kullanıcı adı -> sahte e-posta eşlemesi
+const TZ = "Europe/Berlin";            // Almanya saati
+
+/* ====================================================================
+   2) Takım isimleri (TR) + bayrak kodları (flagcdn)
+   ==================================================================== */
+const TR = {
+ "Mexico":"Meksika","South Africa":"Güney Afrika","South Korea":"Güney Kore","Czechia":"Çekya",
+ "Canada":"Kanada","Bosnia and Herzegovina":"Bosna-Hersek","Qatar":"Katar","Switzerland":"İsviçre",
+ "Brazil":"Brezilya","Morocco":"Fas","Haiti":"Haiti","Scotland":"İskoçya",
+ "United States":"ABD","Paraguay":"Paraguay","Australia":"Avustralya","Türkiye":"Türkiye",
+ "Germany":"Almanya","Curaçao":"Curaçao","Côte d'Ivoire":"Fildişi Sahili","Ecuador":"Ekvador",
+ "Netherlands":"Hollanda","Japan":"Japonya","Sweden":"İsveç","Tunisia":"Tunus",
+ "Belgium":"Belçika","Egypt":"Mısır","Iran":"İran","New Zealand":"Yeni Zelanda",
+ "Spain":"İspanya","Cabo Verde":"Cabo Verde","Saudi Arabia":"Suudi Arabistan","Uruguay":"Uruguay",
+ "France":"Fransa","Senegal":"Senegal","Iraq":"Irak","Norway":"Norveç",
+ "Argentina":"Arjantin","Algeria":"Cezayir","Austria":"Avusturya","Jordan":"Ürdün",
+ "Portugal":"Portekiz","DR Congo":"DR Kongo","Uzbekistan":"Özbekistan","Colombia":"Kolombiya",
+ "England":"İngiltere","Croatia":"Hırvatistan","Ghana":"Gana","Panama":"Panama"
+};
+const FLAG = {
+ "Mexico":"mx","South Africa":"za","South Korea":"kr","Czechia":"cz","Canada":"ca",
+ "Bosnia and Herzegovina":"ba","Qatar":"qa","Switzerland":"ch","Brazil":"br","Morocco":"ma",
+ "Haiti":"ht","Scotland":"gb-sct","United States":"us","Paraguay":"py","Australia":"au","Türkiye":"tr",
+ "Germany":"de","Curaçao":"cw","Côte d'Ivoire":"ci","Ecuador":"ec","Netherlands":"nl","Japan":"jp",
+ "Sweden":"se","Tunisia":"tn","Belgium":"be","Egypt":"eg","Iran":"ir","New Zealand":"nz",
+ "Spain":"es","Cabo Verde":"cv","Saudi Arabia":"sa","Uruguay":"uy","France":"fr","Senegal":"sn",
+ "Iraq":"iq","Norway":"no","Argentina":"ar","Algeria":"dz","Austria":"at","Jordan":"jo",
+ "Portugal":"pt","DR Congo":"cd","Uzbekistan":"uz","Colombia":"co","England":"gb-eng",
+ "Croatia":"hr","Ghana":"gh","Panama":"pa"
+};
+const STAGES = [
+ {k:"group",label:"Gruplar"},{k:"r32",label:"Son 32"},{k:"r16",label:"Son 16"},
+ {k:"qf",label:"Çeyrek Final"},{k:"sf",label:"Yarı Final"},{k:"third",label:"3.lük"},{k:"final",label:"Final"}
+];
+const STAGE_LABEL = Object.fromEntries(STAGES.map(s=>[s.k,s.label]));
+
+const trName = e => TR[e] || e;
+const flagUrl = e => FLAG[e] ? `https://flagcdn.com/48x36/${FLAG[e]}.png` : null;
+const esc = s => (s==null?"":String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const initials = u => (u||"?").trim().slice(0,2).toUpperCase();
+
+/* ====================================================================
+   3) State + Supabase client
+   ==================================================================== */
+let sb=null, session=null, me=null;
+let matches=[], predsMine={}, predsAll=[], profiles=[];
+let curStage="group", curGroup="ALL", adminStage="group";
+let registerMode=false;
+
+const $  = s => document.querySelector(s);
+const show = (el,on)=>el.classList.toggle("hidden",!on);
+
+/* ====================================================================
+   4) Zaman / kilit yardımcıları (Almanya saati ile gösterim)
+   ==================================================================== */
+const now = ()=>new Date();
+const isLocked = m => !m.team_home || !m.team_away || new Date(m.kickoff) <= now();
+const isLive  = m => {
+  if(m.finished || !m.team_home || !m.team_away) return false;
+  const k=new Date(m.kickoff).getTime(); const n=now().getTime();
+  return n>=k && n < k + 2.5*3600*1000;
+};
+function fmtKick(iso){
+  const d=new Date(iso);
+  const day=d.toLocaleDateString("tr-TR",{timeZone:TZ,day:"2-digit",month:"short"});
+  const tm=d.toLocaleTimeString("tr-TR",{timeZone:TZ,hour:"2-digit",minute:"2-digit"});
+  return `${day} · ${tm}`;
+}
+function dayKey(iso){ return new Date(iso).toLocaleDateString("tr-TR",{timeZone:TZ,weekday:"long",day:"2-digit",month:"long"}); }
+
+/* ====================================================================
+   5) PUANLAMA
+   ==================================================================== */
+function grade(pred, m){
+  if(!m.finished || m.home_score==null) return null;
+  if(!pred) return {pts:0,type:"none"};
+  const exact = pred.home===m.home_score && pred.away===m.away_score;
+  if(exact) return {pts:100,type:"exact"};
+  const so=Math.sign(pred.home-pred.away), ao=Math.sign(m.home_score-m.away_score);
+  if(so===ao) return {pts:30,type:"outc"};
+  return {pts:0,type:"bad"};
+}
+function userTotals(uid){
+  let pts=0,exact=0,outc=0,graded=0;
+  const byMatch={};
+  predsAll.forEach(p=>{ if(p.user_id===uid) byMatch[p.match_id]=p; });
+  matches.forEach(m=>{
+    if(!m.finished) return;
+    const g=grade(byMatch[m.id]||null,m);
+    if(!g) return;
+    graded++; pts+=g.pts;
+    if(g.type==="exact"){exact++;outc++;}
+    else if(g.type==="outc"){outc++;}
+  });
+  return {pts,exact,outc,graded};
+}
+
+/* ====================================================================
+   6) AUTH
+   ==================================================================== */
+function authError(msg){ const e=$("#authErr"); e.textContent=msg; e.style.display=msg?"block":"none"; }
+function setRegister(on){
+  registerMode=on;
+  $("#auBtn").textContent = on?"Kayıt ol ve gir":"Giriş yap";
+  $("#auSwitch").innerHTML = on
+    ? 'Zaten hesabın var mı? <button id="auToggle">Giriş yap</button>'
+    : 'Hesabın yok mu? <button id="auToggle">Kayıt ol</button>';
+  $("#auToggle").onclick=()=>setRegister(!registerMode);
+  authError("");
+}
+async function doAuth(){
+  authError("");
+  const u=$("#auUser").value.trim().toLowerCase().replace(/\s+/g,"");
+  const p=$("#auPass").value;
+  if(u.length<2) return authError("Kullanıcı adı en az 2 karakter olmalı.");
+  if(p.length<6) return authError("Şifre en az 6 karakter olmalı.");
+  const email=`${u}@${EMAIL_DOMAIN}`;
+  $("#auBtn").disabled=true; $("#auBtn").textContent="Lütfen bekle…";
+  try{
+    if(registerMode){
+      const {data,error}=await sb.auth.signUp({email,password:p});
+      if(error) throw error;
+      if(data.user){
+        const {error:pe}=await sb.from("profiles").insert({id:data.user.id,username:u});
+        if(pe && pe.code!=="23505") throw pe;
+      }
+      // bazı projelerde signUp otomatik login yapar; değilse login dene
+      if(!data.session){
+        const {error:le}=await sb.auth.signInWithPassword({email,password:p});
+        if(le) throw le;
+      }
+    }else{
+      const {error}=await sb.auth.signInWithPassword({email,password:p});
+      if(error) throw error;
+    }
+  }catch(err){
+    const msg=(err&&err.message)||"Bir hata oluştu.";
+    if(/already registered|already exists/i.test(msg)) authError("Bu kullanıcı adı zaten alınmış. Giriş yapmayı dene.");
+    else if(/Invalid login/i.test(msg)) authError("Kullanıcı adı veya şifre hatalı.");
+    else if(/confirm/i.test(msg)) authError("E-posta onayı açık görünüyor. Supabase ayarlarından 'Confirm email' kapatılmalı.");
+    else authError(msg);
+  }finally{
+    $("#auBtn").disabled=false; $("#auBtn").textContent=registerMode?"Kayıt ol ve gir":"Giriş yap";
+  }
+}
+
+/* ====================================================================
+   7) VERİ ÇEKME
+   ==================================================================== */
+async function loadProfile(){
+  const {data}=await sb.from("profiles").select("*").eq("id",session.user.id).maybeSingle();
+  me=data;
+  if(!me){ // profil yoksa oluştur (eski kayıtlar için)
+    const u=session.user.email.split("@")[0];
+    await sb.from("profiles").insert({id:session.user.id,username:u});
+    const r=await sb.from("profiles").select("*").eq("id",session.user.id).maybeSingle();
+    me=r.data;
+  }
+}
+async function loadAll(){
+  const [mq,pq,allq,profq]=await Promise.all([
+    sb.from("matches").select("*").order("ord"),
+    sb.from("predictions").select("*").eq("user_id",session.user.id),
+    sb.from("predictions").select("user_id,match_id,home,away"),
+    sb.from("profiles").select("id,username,is_admin")
+  ]);
+  matches = mq.data||[];
+  predsMine={}; (pq.data||[]).forEach(p=>predsMine[p.match_id]=p);
+  predsAll = allq.data||[];
+  profiles = profq.data||[];
+}
+
+/* ====================================================================
+   8) RENDER — Maç listesi
+   ==================================================================== */
+function badgeFor(m){
+  if(m.finished) return `<span class="badge fin">Bitti</span>`;
+  if(isLive(m))  return `<span class="badge live">● Oynanıyor</span>`;
+  if(isLocked(m))return `<span class="badge lock">Kilitli</span>`;
+  return `<span class="badge open">Açık</span>`;
+}
+function teamHTML(name,slot,side){
+  if(name){
+    const fl=flagUrl(name);
+    const flg = fl?`<img class="fl" src="${fl}" alt="" loading="lazy">`:`<span class="fl ph">?</span>`;
+    return `<div class="team ${side}">${flg}<span class="nm">${esc(trName(name))}</span></div>`;
+  }
+  return `<div class="team ${side}"><span class="fl ph">?</span><span class="nm placeholder-slot">${esc(slot||"?")}</span></div>`;
+}
+function matchCard(m){
+  const locked=isLocked(m), fin=m.finished, live=isLive(m);
+  const cls = fin?"fin":(live?"live":(locked?"":"open"));
+  const pred=predsMine[m.id];
+  const meta = m.grp ? `Grup <b>${m.grp}</b>` : `<b>${esc(m.label||STAGE_LABEL[m.stage])}</b>`;
+
+  // orta blok: skor inputları ya da gerçek skor
+  let center;
+  if(fin){
+    center=`<div class="actual"><div class="sc">${m.home_score} – ${m.away_score}</div><div class="lab">Sonuç</div></div>`;
+  }else{
+    const hv=pred?pred.home:"", av=pred?pred.away:"";
+    const dis=locked?"disabled":"";
+    const act=pred?"act":"";
+    center=`<div class="scorebox">
+      <input class="si ${act}" data-m="${m.id}" data-side="h" type="number" min="0" max="99" inputmode="numeric" value="${hv}" ${dis}>
+      <span class="dash">–</span>
+      <input class="si ${act}" data-m="${m.id}" data-side="a" type="number" min="0" max="99" inputmode="numeric" value="${av}" ${dis}>
+    </div>`;
+  }
+
+  // alt satır
+  let foot="";
+  if(fin){
+    const g=grade(pred||null,m);
+    const yp = pred?`<span class="yourpred">Tahminin: ${pred.home}–${pred.away}</span>`:`<span style="color:var(--muted)">Tahmin yapmadın</span>`;
+    let pill="";
+    if(g.type==="exact") pill=`<span class="yp exact">SKOR TAM · +100</span>`;
+    else if(g.type==="outc") pill=`<span class="yp outc">SONUÇ · +30</span>`;
+    else pill=`<span class="yp bad">0 PUAN</span>`;
+    foot=`${yp}${pill}`;
+  }else if(!m.team_home || !m.team_away){
+    foot=`<span style="color:var(--muted)">Takımlar belli olunca tahmine açılacak</span>`;
+  }else if(locked){
+    foot = pred?`<span class="yourpred">Tahminin: ${pred.home}–${pred.away}</span><span class="yp wait">Sonuç bekleniyor</span>`
+               :`<span style="color:var(--muted)">Tahmin yapmadın · kilitlendi</span>`;
+  }else{
+    foot = pred?`<span class="yourpred">✓ Tahminin: ${pred.home}–${pred.away}</span><span style="margin-left:auto;color:var(--muted)">değiştirebilirsin</span>`
+               :`<span style="color:var(--muted)">Skoru yaz, otomatik kaydedilir</span>`;
+  }
+
+  return `<div class="match ${cls}">
+    <div class="mtop"><span class="meta">${meta}</span>
+      <span class="meta">🕑 ${fmtKick(m.kickoff)} <span style="opacity:.6">(DE)</span></span>
+      ${badgeFor(m)}</div>
+    <div class="mrow">
+      ${teamHTML(m.team_home,m.slot_home,"home")}
+      ${center}
+      ${teamHTML(m.team_away,m.slot_away,"away")}
+    </div>
+    <div class="mfoot">${foot}</div>
+  </div>`;
+}
+function renderMatches(){
+  const list=$("#matchList");
+  let ms=matches.filter(m=>m.stage===curStage);
+  if(curStage==="group" && curGroup!=="ALL") ms=ms.filter(m=>m.grp===curGroup);
+  if(!ms.length){ list.innerHTML=`<div class="empty">Bu sekmede maç yok.</div>`; return; }
+  // gün gün grupla
+  let html="", lastDay=null;
+  ms.forEach(m=>{
+    const dk=dayKey(m.kickoff);
+    if(dk!==lastDay){ html+=`<div class="dayhdr">${esc(dk)}</div>`; lastDay=dk; }
+    html+=matchCard(m);
+  });
+  list.innerHTML=html;
+  bindScoreInputs();
+}
+function renderStageFilters(){
+  const present=new Set(matches.map(m=>m.stage));
+  $("#stageFilters").innerHTML = STAGES.filter(s=>present.has(s.k)).map(s=>
+    `<button class="pill ${s.k===curStage?"on":""}" data-stage="${s.k}">${s.label}</button>`).join("");
+  $("#stageFilters").querySelectorAll(".pill").forEach(b=>b.onclick=()=>{
+    curStage=b.dataset.stage; curGroup="ALL"; renderStageFilters(); renderGroupFilters(); renderMatches();
+  });
+}
+function renderGroupFilters(){
+  const box=$("#groupFilters");
+  if(curStage!=="group"){ box.innerHTML=""; return; }
+  const gs=[...new Set(matches.filter(m=>m.grp).map(m=>m.grp))].sort();
+  box.innerHTML = `<button class="pill ${curGroup==="ALL"?"on":""}" data-g="ALL">Tüm Gruplar</button>`+
+    gs.map(g=>`<button class="pill ${curGroup===g?"on":""}" data-g="${g}">Grup ${g}</button>`).join("");
+  box.querySelectorAll(".pill").forEach(b=>b.onclick=()=>{ curGroup=b.dataset.g; renderGroupFilters(); renderMatches(); });
+}
+
+/* ====================================================================
+   9) Skor girişi → otomatik kaydet → bant
+   ==================================================================== */
+const saveTimers={};
+function bindScoreInputs(){
+  $("#matchList").querySelectorAll(".si").forEach(inp=>{
+    inp.addEventListener("input",()=>{
+      const mid=+inp.dataset.m;
+      clearTimeout(saveTimers[mid]);
+      saveTimers[mid]=setTimeout(()=>trySave(mid),700);
+    });
+  });
+}
+async function trySave(mid){
+  const h=$(`.si[data-m="${mid}"][data-side="h"]`);
+  const a=$(`.si[data-m="${mid}"][data-side="a"]`);
+  if(!h||!a) return;
+  if(h.value==="" || a.value==="") return; // ikisi de dolmadan kaydetme
+  let hv=Math.max(0,Math.min(99,parseInt(h.value,10)));
+  let av=Math.max(0,Math.min(99,parseInt(a.value,10)));
+  if(isNaN(hv)||isNaN(av)) return;
+  const m=matches.find(x=>x.id===mid);
+  if(!m || isLocked(m)) return;
+  try{
+    const {error}=await sb.from("predictions").upsert(
+      {user_id:session.user.id,match_id:mid,home:hv,away:av,updated_at:new Date().toISOString()},
+      {onConflict:"user_id,match_id"});
+    if(error) throw error;
+    predsMine[mid]={user_id:session.user.id,match_id:mid,home:hv,away:av};
+    // predsAll içinde güncelle (kendi)
+    const i=predsAll.findIndex(p=>p.user_id===session.user.id && p.match_id===mid);
+    if(i>=0) predsAll[i]={...predsAll[i],home:hv,away:av}; else predsAll.push({user_id:session.user.id,match_id:mid,home:hv,away:av});
+    h.classList.add("act"); a.classList.add("act");
+    band(`${trName(m.team_home)} ${hv} – ${av} ${trName(m.team_away)}`,"Tahmin kaydedildi");
+  }catch(err){
+    band((err&&err.message)||"Kaydedilemedi","Hata",true);
+  }
+}
+let bandTimer=null;
+function band(title,sub,isErr){
+  const b=$("#band");
+  $("#bandTx").innerHTML=`${esc(title)}<small>${esc(sub||"")}</small>`;
+  b.classList.toggle("err",!!isErr);
+  b.querySelector(".ck").textContent=isErr?"!":"✓";
+  b.classList.add("show");
+  clearTimeout(bandTimer);
+  bandTimer=setTimeout(()=>b.classList.remove("show"),3200);
+}
+
+/* ====================================================================
+   10) LİDER TABLOSU + profil modalı
+   ==================================================================== */
+function renderLeaderboard(){
+  const rows=profiles.map(p=>({...p,...userTotals(p.id)}))
+    .sort((a,b)=> b.pts-a.pts || b.exact-a.exact || a.username.localeCompare(b.username));
+  const box=$("#leaderboard");
+  if(!rows.length){ box.innerHTML=`<div style="padding:24px;text-align:center;color:var(--muted)">Henüz oyuncu yok.</div>`; return; }
+  box.innerHTML=rows.map((r,i)=>{
+    const rank=i+1, gcls=rank<=3?`g${rank}`:"";
+    const medal=rank===1?"🥇":rank===2?"🥈":rank===3?"🥉":rank;
+    const meCls=r.id===session.user.id?"me":"";
+    return `<div class="lbrow ${meCls}" data-uid="${r.id}">
+      <div class="rank ${gcls}">${medal}</div>
+      <div class="lbav">${esc(initials(r.username))}</div>
+      <div class="lbinfo"><div class="nm">${esc(r.username)}${r.is_admin?' ⚙️':''}</div>
+        <div class="st"><span class="e">${r.exact} tam</span> · <span class="o">${r.outc} sonuç</span> · ${r.graded} maç</div></div>
+      <div class="lbpts">${r.pts}<small>PUAN</small></div>
+    </div>`;
+  }).join("");
+  box.querySelectorAll(".lbrow").forEach(el=>el.onclick=()=>openProfile(el.dataset.uid));
+}
+function openProfile(uid){
+  const prof=profiles.find(p=>p.id===uid); if(!prof) return;
+  const t=userTotals(uid);
+  const byMatch={}; predsAll.forEach(p=>{ if(p.user_id===uid) byMatch[p.match_id]=p; });
+  const finished=matches.filter(m=>m.finished);
+
+  const rows=finished.map(m=>{
+    const pred=byMatch[m.id]||null;
+    const g=grade(pred,m);
+    const cls=g.type;
+    const predTxt = pred?`${pred.home}–${pred.away}`:"—";
+    const ptTxt = g.type==="exact"?"+100":g.type==="outc"?"+30":"0";
+    const stageTxt = m.grp?`Grup ${m.grp}`:(m.label||STAGE_LABEL[m.stage]);
+    return `<div class="pg ${cls}">
+      <div class="aa">${m.home_score}–${m.away_score}</div>
+      <div class="mt">${esc(trName(m.team_home))} - ${esc(trName(m.team_away))}<br><small>${esc(stageTxt)}</small></div>
+      <div class="pp">${predTxt}</div>
+      <div class="pt">${ptTxt}</div>
+    </div>`;
+  }).join("");
+
+  $("#modalCard").innerHTML=`
+    <div class="mh"><div class="av">${esc(initials(prof.username))}</div>
+      <div><h3>${esc(prof.username)}</h3>
+        <div class="s">${t.pts} puan · ${t.exact} tam skor · ${t.outc} doğru sonuç · ${t.graded} maç</div></div>
+      <button class="x" id="mClose">✕</button></div>
+    <div class="legend">
+      <span><i class="lg-e"></i> Skoru tam bildi (+100)</span>
+      <span><i class="lg-o"></i> Sonucu bildi (+30)</span>
+      <span><i class="lg-b"></i> Bilemedi (0)</span>
+    </div>
+    <div class="pgrid">${rows||'<div class="empty">Henüz biten maç yok.</div>'}</div>`;
+  $("#modal").classList.add("show");
+  $("#mClose").onclick=closeModal;
+}
+function closeModal(){ $("#modal").classList.remove("show"); }
+
+/* ====================================================================
+   11) RIBBON (canlı/biten skor şeridi)
+   ==================================================================== */
+function renderRibbon(){
+  const done=matches.filter(m=>m.finished).slice(-14);
+  const items = done.length?done:matches.filter(m=>m.team_home&&m.team_away).slice(0,14);
+  const cell=m=>{
+    if(m.finished) return `<span class="it">${esc(trName(m.team_home))} <b>${m.home_score}-${m.away_score}</b> ${esc(trName(m.team_away))}</span>`;
+    return `<span class="it">${esc(trName(m.team_home))} <b>vs</b> ${esc(trName(m.team_away))} · ${fmtKick(m.kickoff)}</span>`;
+  };
+  const seq=items.map(cell).join("");
+  $("#ribbonTrack").innerHTML = seq+seq; // kesintisiz döngü için iki kez
+}
+
+/* ====================================================================
+   12) YÖNETİM PANELİ
+   ==================================================================== */
+function renderAdminFilters(){
+  const present=new Set(matches.map(m=>m.stage));
+  $("#adminStageFilters").innerHTML = STAGES.filter(s=>present.has(s.k)).map(s=>
+    `<button class="pill ${s.k===adminStage?"on":""}" data-stage="${s.k}">${s.label}</button>`).join("");
+  $("#adminStageFilters").querySelectorAll(".pill").forEach(b=>b.onclick=()=>{
+    adminStage=b.dataset.stage; renderAdminFilters(); renderAdmin();
+  });
+}
+function renderAdmin(){
+  const box=$("#adminList");
+  const ms=matches.filter(m=>m.stage===adminStage);
+  box.innerHTML=ms.map(m=>{
+    const label=m.grp?`Grup ${m.grp}`:(m.label||STAGE_LABEL[m.stage]);
+    const teamset = (m.stage!=="group") ? `
+      <div class="teamset">
+        <input class="tin" data-id="${m.id}" data-f="team_home" placeholder="${esc(m.slot_home||'Ev sahibi (İngilizce)')}" value="${esc(m.team_home||'')}">
+        <input class="tin" data-id="${m.id}" data-f="team_away" placeholder="${esc(m.slot_away||'Deplasman (İngilizce)')}" value="${esc(m.team_away||'')}">
+      </div>`:"";
+    const hn=m.team_home?trName(m.team_home):(m.slot_home||"?");
+    const an=m.team_away?trName(m.team_away):(m.slot_away||"?");
+    return `<div style="margin-bottom:8px">
+      <div style="font-size:11px;color:var(--muted);font-weight:700;margin:0 2px 4px">${esc(label)} · ${fmtKick(m.kickoff)}</div>
+      ${teamset}
+      <div class="arow">
+        <div class="nm">${esc(hn)}</div>
+        <input data-id="${m.id}" data-f="home_score" type="number" min="0" value="${m.home_score??""}">
+        <div style="text-align:center;color:var(--muted)">–</div>
+        <input data-id="${m.id}" data-f="away_score" type="number" min="0" value="${m.away_score??""}">
+        <button class="btn gold sm" data-save="${m.id}">Kaydet</button>
+      </div>
+      <div style="text-align:right;font-size:11px;color:var(--muted);margin:2px 4px 0">${esc(an)}</div>
+    </div>`;
+  }).join("");
+  box.querySelectorAll("[data-save]").forEach(btn=>btn.onclick=()=>adminSave(+btn.dataset.save,btn));
+}
+async function adminSave(id,btn){
+  const get=f=>{const el=$(`[data-id="${id}"][data-f="${f}"]`);return el?el.value.trim():null;};
+  const hs=get("home_score"), as=get("away_score");
+  const th=get("team_home"), ta=get("team_away");
+  const patch={};
+  if(th!==null) patch.team_home = th||null;
+  if(ta!==null) patch.team_away = ta||null;
+  if(hs!==""&&hs!=null && as!==""&&as!=null){
+    patch.home_score=parseInt(hs,10); patch.away_score=parseInt(as,10); patch.finished=true;
+  }else{
+    patch.home_score=null; patch.away_score=null; patch.finished=false;
+  }
+  btn.disabled=true; btn.textContent="…";
+  try{
+    const {error}=await sb.from("matches").update(patch).eq("id",id);
+    if(error) throw error;
+    Object.assign(matches.find(m=>m.id===id),patch);
+    band("Maç güncellendi","Yönetim");
+    renderLeaderboard(); renderRibbon();
+  }catch(err){ band((err&&err.message)||"Hata","Yönetim",true); }
+  finally{ btn.disabled=false; btn.textContent="Kaydet"; }
+}
+
+/* ====================================================================
+   13) TAB yönetimi + boot
+   ==================================================================== */
+function switchTab(t){
+  document.querySelectorAll("nav.tabs button").forEach(b=>b.classList.toggle("on",b.dataset.tab===t));
+  show($("#tab-matches"),t==="matches");
+  show($("#tab-how"),t==="how");
+  show($("#tab-admin"),t==="admin");
+  if(t==="admin"){ renderAdminFilters(); renderAdmin(); }
+}
+function renderAll(){
+  renderRibbon(); renderStageFilters(); renderGroupFilters(); renderMatches(); renderLeaderboard();
+}
+async function enterApp(){
+  show($("#authScreen"),false); show($("#setupScreen"),false); show($("#appScreen"),true);
+  $("#meName").textContent=me.username;
+  $("#meAv").textContent=initials(me.username);
+  show($("#adminTab"),!!me.is_admin);
+  await loadAll();
+  renderAll();
+}
+
+function bindStaticUI(){
+  $("#auBtn").onclick=doAuth;
+  $("#auPass").addEventListener("keydown",e=>{ if(e.key==="Enter") doAuth(); });
+  setRegister(false);
+  $("#logoutBtn").onclick=async()=>{ await sb.auth.signOut(); location.reload(); };
+  $("#refreshBtn").onclick=async()=>{ await loadAll(); renderAll(); if(me.is_admin)renderAdmin(); band("Güncel veriler yüklendi","Yenilendi"); };
+  document.querySelectorAll("nav.tabs button").forEach(b=>b.onclick=()=>switchTab(b.dataset.tab));
+  $("#modal").addEventListener("click",e=>{ if(e.target.id==="modal") closeModal(); });
+  document.addEventListener("keydown",e=>{ if(e.key==="Escape") closeModal(); });
+}
+
+async function boot(){
+  if(SUPABASE_URL.includes("YOUR-PROJECT") || SUPABASE_ANON_KEY.includes("YOUR-ANON")){
+    show($("#setupScreen"),true); return;
+  }
+  sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+  bindStaticUI();
+  const {data:{session:s}}=await sb.auth.getSession();
+  session=s;
+  if(session){ await loadProfile(); await enterApp(); }
+  else show($("#authScreen"),true);
+  sb.auth.onAuthStateChange(async(_e,s2)=>{
+    if(s2 && (!session || s2.user.id!==session.user.id)){
+      session=s2; await loadProfile(); await enterApp();
+    }else if(!s2){ session=null; }
+  });
+}
+boot();
+</script>
+</body>
+</html>
