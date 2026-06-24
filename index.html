@@ -314,7 +314,6 @@ nav.tabs button:hover{color:var(--ink)}
   background:linear-gradient(160deg,var(--gold),#b8860b);color:#241400;font-size:17px}
 .mcard .mh h3{margin:0;font-size:19px}
 .mcard .mh .s{font-size:12px;color:var(--muted);font-weight:700;margin-top:2px}
-.mcard .mh .s2{font-size:11px;color:var(--muted);font-weight:600;margin-top:3px;opacity:.9}
 .mcard .mh .x{margin-left:auto;background:#13261c;border:1px solid var(--line2);color:var(--ink);
   width:34px;height:34px;border-radius:9px;font-size:18px}
 .pgrid{padding:14px 18px 22px}
@@ -499,6 +498,9 @@ const SUPABASE_URL  = "https://kuuwdpzyeovkfjoradwq.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_M-QnplymNuUQVcbHQr0_RQ_wLh2YFOp";
 const EMAIL_DOMAIN = "tahmin.local";   // kullanıcı adı -> sahte e-posta eşlemesi
 const TZ = "Europe/Berlin";            // Almanya saati
+// Lider tablolarında gizlenecek kullanıcılar (küçük harf). Yönetici hesabı oyun oynamaz.
+const HIDDEN_USERS = ["admin"];
+const isHiddenUser = u => HIDDEN_USERS.includes((u||"").trim().toLowerCase());
 
 /* ====================================================================
    2) Takım isimleri (TR) + bayrak kodları (flagcdn)
@@ -571,23 +573,6 @@ function fmtKick(iso){
   return `${day} · ${tm}`;
 }
 function dayKey(iso){ return new Date(iso).toLocaleDateString("tr-TR",{timeZone:TZ,weekday:"long",day:"2-digit",month:"long"}); }
-// Göreli zaman (Türkçe): "az önce", "5 dk önce", "3 saat önce", "2 gün önce", sonra tam tarih
-function relTime(iso){
-  if(!iso) return "—";
-  const d=new Date(iso); if(isNaN(d)) return "—";
-  const sec=Math.floor((Date.now()-d.getTime())/1000);
-  if(sec<60) return "az önce";
-  const min=Math.floor(sec/60); if(min<60) return `${min} dk önce`;
-  const hr=Math.floor(min/60); if(hr<24) return `${hr} saat önce`;
-  const day=Math.floor(hr/24); if(day<7) return `${day} gün önce`;
-  return d.toLocaleDateString("tr-TR",{timeZone:TZ,day:"2-digit",month:"short",year:"numeric"});
-}
-// Tam tarih (gün + saat, Almanya saati)
-function fmtDate(iso){
-  if(!iso) return "—";
-  const d=new Date(iso); if(isNaN(d)) return "—";
-  return d.toLocaleString("tr-TR",{timeZone:TZ,day:"2-digit",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"});
-}
 
 // ISO (UTC) zamanı, <input type="datetime-local"> için Almanya saatine çevirir (örn. "2026-06-20T20:00")
 function toBerlinInputValue(iso){
@@ -708,7 +693,7 @@ async function loadAll(){
     sb.from("matches").select("*").order("ord"),
     sb.from("predictions").select("*").eq("user_id",session.user.id),
     sb.from("predictions").select("user_id,match_id,home,away"),
-    sb.from("profiles").select("id,username,is_admin,created_at,last_active"),
+    sb.from("profiles").select("id,username,is_admin"),
     sb.rpc("prediction_counts")
   ]);
   matches = mq.data||[];
@@ -948,7 +933,7 @@ function band(title,sub,isErr){
    10) LİDER TABLOSU + profil modalı
    ==================================================================== */
 function renderLeaderboard(){
-  const rows=profiles.map(p=>({...p,...userTotals(p.id)}))
+  const rows=profiles.filter(p=>!isHiddenUser(p.username)).map(p=>({...p,...userTotals(p.id)}))
     .sort((a,b)=> b.pts-a.pts || b.exact-a.exact || a.username.localeCompare(b.username));
   const box=$("#leaderboard");
   if(!rows.length){ box.innerHTML=`<div style="padding:24px;text-align:center;color:var(--muted)">Henüz oyuncu yok.</div>`; return; }
@@ -990,8 +975,7 @@ function openProfile(uid){
   $("#modalCard").innerHTML=`
     <div class="mh"><div class="av">${esc(initials(prof.username))}</div>
       <div><h3>${esc(prof.username)}</h3>
-        <div class="s">${t.pts} puan · ${t.exact} tam skor · ${t.outc} doğru sonuç · ${t.picks} tahmin</div>
-        <div class="s2">📅 Kayıt: ${esc(fmtDate(prof.created_at))} · 🟢 Son aktif: ${esc(relTime(prof.last_active))}</div></div>
+        <div class="s">${t.pts} puan · ${t.exact} tam skor · ${t.outc} doğru sonuç · ${t.picks} tahmin</div></div>
       <button class="x" id="mClose">✕</button></div>
     <div class="legend">
       <span><i class="lg-e"></i> Skoru tam bildi (+100)</span>
@@ -1126,7 +1110,7 @@ function switchTab(t){
   if(t==="mypicks"){ renderMyPicks(); }
 }
 function renderLeaderboardTab(){
-  const rows=profiles.map(p=>({...p,...userTotals(p.id)}))
+  const rows=profiles.filter(p=>!isHiddenUser(p.username)).map(p=>({...p,...userTotals(p.id)}))
     .sort((a,b)=> b.pts-a.pts || b.exact-a.exact || a.username.localeCompare(b.username));
   const box=$("#tab-leaderboard");
   if(!box) return;
