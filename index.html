@@ -737,7 +737,7 @@ function renderFinishedToggle(){
   const finCount=matches.filter(m=>m.stage===curStage && m.finished).length;
   if(!finCount){ box.innerHTML=""; return; }
   box.innerHTML=`<button class="pill toggle-fin ${showFinished?"on":""}" id="finToggleBtn">
-    ${showFinished?"✓ Biten maçlar gösteriliyor":"🏁 Biten maçları göster ("+finCount+")"}
+    ${showFinished?"✓ Sadece henüz oynanmış maçları göster":"🏁 Tamamlanan maçları da göster ("+finCount+")"}
   </button>`;
   $("#finToggleBtn").onclick=()=>{ showFinished=!showFinished; renderFinishedToggle(); renderMatches(); };
 }
