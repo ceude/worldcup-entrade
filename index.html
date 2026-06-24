@@ -223,6 +223,8 @@ nav.tabs button:hover{color:var(--ink)}
 .lbinfo .st .e{color:var(--ok)}.lbinfo .st .o{color:var(--outc)}
 .lbpts{font-family:'Anton';font-size:22px;color:var(--gold)}
 .lbpts small{font-size:10px;color:var(--muted);font-weight:700;display:block;text-align:right;letter-spacing:1px}
+.lb-hint{font-size:11.5px;color:var(--muted);font-weight:600;line-height:1.45;padding:9px 16px 11px;border-bottom:1px solid var(--line)}
+.lb-hint.tabhint{border:1px solid var(--line);border-radius:12px;background:var(--panel);margin:0 0 12px;padding:11px 14px;font-size:12.5px}
 
 /* scoring mini card */
 .scoringcard{padding:15px 16px}
@@ -312,6 +314,7 @@ nav.tabs button:hover{color:var(--ink)}
   background:linear-gradient(160deg,var(--gold),#b8860b);color:#241400;font-size:17px}
 .mcard .mh h3{margin:0;font-size:19px}
 .mcard .mh .s{font-size:12px;color:var(--muted);font-weight:700;margin-top:2px}
+.mcard .mh .s2{font-size:11px;color:var(--muted);font-weight:600;margin-top:3px;opacity:.9}
 .mcard .mh .x{margin-left:auto;background:#13261c;border:1px solid var(--line2);color:var(--ink);
   width:34px;height:34px;border-radius:9px;font-size:18px}
 .pgrid{padding:14px 18px 22px}
@@ -323,8 +326,9 @@ nav.tabs button:hover{color:var(--ink)}
 .pg.none{background:#141a17}
 .pg .mt{font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .pg .mt small{color:var(--muted);font-weight:600}
-.pg .pp{font-family:'Anton';font-size:16px;letter-spacing:1px;color:#cbe0d2}
-.pg .aa{font-family:'Anton';font-size:16px;letter-spacing:1px}
+.pg .pp{font-family:'Anton';font-size:16px;letter-spacing:1px;color:#cbe0d2;text-align:center}
+.pg .aa{font-family:'Anton';font-size:16px;letter-spacing:1px;text-align:center}
+.pg .cap{display:block;font-family:'Plus Jakarta Sans';font-size:8px;letter-spacing:.8px;color:var(--muted);font-weight:800;text-transform:uppercase;margin-bottom:1px}
 .pg .pt{font-weight:800;font-size:13px;min-width:42px;text-align:right}
 .pg.exact .pt{color:var(--ok)}.pg.outc .pt{color:var(--outc)}.pg.bad .pt,.pg.none .pt{color:var(--bad)}
 .legend{display:flex;gap:14px;flex-wrap:wrap;padding:0 18px 16px;font-size:11.5px;color:var(--muted);font-weight:700}
@@ -456,6 +460,7 @@ nav.tabs button:hover{color:var(--ink)}
     <aside class="col-right">
       <div class="panel" style="margin-bottom:16px">
         <div class="ph"><span class="ico">🏅</span><h3>Lider Tablosu</h3></div>
+        <div class="lb-hint">Kişilere tıklayarak biten maçlardaki tahminlerini görebilirsiniz.</div>
         <div id="leaderboard"><div style="padding:24px;text-align:center;color:var(--muted)">Yükleniyor…</div></div>
       </div>
       <div class="panel">
@@ -566,6 +571,23 @@ function fmtKick(iso){
   return `${day} · ${tm}`;
 }
 function dayKey(iso){ return new Date(iso).toLocaleDateString("tr-TR",{timeZone:TZ,weekday:"long",day:"2-digit",month:"long"}); }
+// Göreli zaman (Türkçe): "az önce", "5 dk önce", "3 saat önce", "2 gün önce", sonra tam tarih
+function relTime(iso){
+  if(!iso) return "—";
+  const d=new Date(iso); if(isNaN(d)) return "—";
+  const sec=Math.floor((Date.now()-d.getTime())/1000);
+  if(sec<60) return "az önce";
+  const min=Math.floor(sec/60); if(min<60) return `${min} dk önce`;
+  const hr=Math.floor(min/60); if(hr<24) return `${hr} saat önce`;
+  const day=Math.floor(hr/24); if(day<7) return `${day} gün önce`;
+  return d.toLocaleDateString("tr-TR",{timeZone:TZ,day:"2-digit",month:"short",year:"numeric"});
+}
+// Tam tarih (gün + saat, Almanya saati)
+function fmtDate(iso){
+  if(!iso) return "—";
+  const d=new Date(iso); if(isNaN(d)) return "—";
+  return d.toLocaleString("tr-TR",{timeZone:TZ,day:"2-digit",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"});
+}
 
 // ISO (UTC) zamanı, <input type="datetime-local"> için Almanya saatine çevirir (örn. "2026-06-20T20:00")
 function toBerlinInputValue(iso){
@@ -686,7 +708,7 @@ async function loadAll(){
     sb.from("matches").select("*").order("ord"),
     sb.from("predictions").select("*").eq("user_id",session.user.id),
     sb.from("predictions").select("user_id,match_id,home,away"),
-    sb.from("profiles").select("id,username,is_admin"),
+    sb.from("profiles").select("id,username,is_admin,created_at,last_active"),
     sb.rpc("prediction_counts")
   ]);
   matches = mq.data||[];
@@ -958,9 +980,9 @@ function openProfile(uid){
     const ptTxt = g.type==="exact"?"+100":g.type==="outc"?"+30":"0";
     const stageTxt = m.grp?`Grup ${m.grp}`:(m.label||STAGE_LABEL[m.stage]);
     return `<div class="pg ${cls}">
-      <div class="aa">${m.home_score}–${m.away_score}</div>
+      <div class="aa"><span class="cap">Sonuç</span>${m.home_score}–${m.away_score}</div>
       <div class="mt">${esc(trName(m.team_home))} - ${esc(trName(m.team_away))}<br><small>${esc(stageTxt)}</small></div>
-      <div class="pp">${predTxt}</div>
+      <div class="pp"><span class="cap">Tahmin</span>${predTxt}</div>
       <div class="pt">${ptTxt}</div>
     </div>`;
   }).join("");
@@ -968,7 +990,8 @@ function openProfile(uid){
   $("#modalCard").innerHTML=`
     <div class="mh"><div class="av">${esc(initials(prof.username))}</div>
       <div><h3>${esc(prof.username)}</h3>
-        <div class="s">${t.pts} puan · ${t.exact} tam skor · ${t.outc} doğru sonuç · ${t.picks} tahmin</div></div>
+        <div class="s">${t.pts} puan · ${t.exact} tam skor · ${t.outc} doğru sonuç · ${t.picks} tahmin</div>
+        <div class="s2">📅 Kayıt: ${esc(fmtDate(prof.created_at))} · 🟢 Son aktif: ${esc(relTime(prof.last_active))}</div></div>
       <button class="x" id="mClose">✕</button></div>
     <div class="legend">
       <span><i class="lg-e"></i> Skoru tam bildi (+100)</span>
@@ -1108,7 +1131,7 @@ function renderLeaderboardTab(){
   const box=$("#tab-leaderboard");
   if(!box) return;
   if(!rows.length){ box.innerHTML=`<div class="empty">Henüz oyuncu yok.</div>`; return; }
-  box.innerHTML=`<div class="panel" style="margin-top:4px">`+
+  box.innerHTML=`<div class="lb-hint tabhint">Kişilere tıklayarak biten maçlardaki tahminlerini görebilirsiniz.</div><div class="panel" style="margin-top:4px">`+
     rows.map((r,i)=>{
       const rank=i+1, gcls=rank<=3?`g${rank}`:"";
       const medal=rank===1?"🥇":rank===2?"🥈":rank===3?"🥉":rank;
@@ -1133,6 +1156,8 @@ async function enterApp(){
   $("#meName").textContent=me.username;
   $("#meAv").textContent=initials(me.username);
   show($("#adminTab"),!!me.is_admin);
+  // Son aktiflik zamanını güncelle (hata olursa sessizce geç — kolon yoksa app çökmesin)
+  try{ await sb.from("profiles").update({last_active:new Date().toISOString()}).eq("id",session.user.id); }catch(e){}
   await loadAll();
   renderAll();
 }
