@@ -1252,13 +1252,6 @@ function assignColors(){
   playerColors={}; ps.forEach((p,i)=>playerColors[p.id]=PALETTE[i%PALETTE.length]);
 }
 const CHART_START="2026-06-24";  // ilk puanların kazanıldığı gün
-// Bir maçın "gün"ü: Almanya saatiyle (kickoff - 8 saat) tarihi → gece yarısı–08:00 arası maçlar önceki güne sayılır
-function matchDayKey(iso){
-  const shifted=new Date(new Date(iso).getTime()-8*3600*1000);
-  const p=new Intl.DateTimeFormat("en-CA",{timeZone:TZ,year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(shifted);
-  const g=t=>p.find(x=>x.type===t).value;
-  return `${g("year")}-${g("month")}-${g("day")}`;
-}
 function shortDay(key){
   const d=new Date(key+"T12:00:00Z");
   return d.toLocaleDateString("tr-TR",{day:"2-digit",month:"short"});
@@ -1270,7 +1263,7 @@ function computeProgression(){
   const predBy={}; predsAll.forEach(p=>{ predBy[p.user_id+"|"+p.match_id]=p; });
   const dayInc={}; let maxDay=CHART_START;
   fin.forEach(m=>{
-    let dk=matchDayKey(m.kickoff); if(dk<CHART_START) dk=CHART_START;
+    let dk=berlinCalKey(m.kickoff); if(dk<CHART_START) dk=CHART_START;
     if(dk>maxDay) maxDay=dk;
     players.forEach(pl=>{
       const g=grade(predBy[pl.id+"|"+m.id]||null,m); const pts=g?g.pts:0;
