@@ -19,7 +19,7 @@ esnek yazıldı (birkaç olası alan adını dener). İlk çalıştırmada --deb
 gelen yapıyı gör; gerekirse aşağıdaki GETTER fonksiyonlarındaki anahtarları düzelt.
 """
 
-import os, sys, json, unicodedata, urllib.request, urllib.error
+import os, sys, json, time, unicodedata, urllib.request, urllib.error
 from datetime import datetime, timezone
 
 API_URL = os.environ.get("WC_API_URL", "https://worldcup26.ir/get/games")
@@ -111,12 +111,18 @@ def is_live(game):
     if s and s.replace("'","").strip().isdigit(): return True
     return any(w in s for w in LIVE_WORDS)
 
-def http_get_json(url, headers=None):
-    req = urllib.request.Request(url, headers=headers or {})
-    with urllib.request.urlopen(req, timeout=30) as r:
-        return json.loads(r.read().decode("utf-8"))
+def http_get_json(url, headers=None, tries=3):
+    last=None
+    for i in range(tries):
+        try:
+            req = urllib.request.Request(url, headers=headers or {})
+            with urllib.request.urlopen(req, timeout=30) as r:
+                return json.loads(r.read().decode("utf-8"))
+        except (urllib.error.URLError, TimeoutError) as e:
+            last=e; print(f"  ağ hatası ({i+1}/{tries}): {e}; tekrar deneniyor..."); time.sleep(3)
+    raise last
 
-def supabase(method, path, body=None):
+def supabase(method, path, body=None, tries=3):
     url = f"{SUPABASE_URL}/rest/v1/{path}"
     headers = {
         "apikey": SERVICE_KEY,
@@ -125,10 +131,16 @@ def supabase(method, path, body=None):
         "Prefer": "return=representation",
     }
     data = json.dumps(body).encode() if body is not None else None
-    req = urllib.request.Request(url, data=data, headers=headers, method=method)
-    with urllib.request.urlopen(req, timeout=30) as r:
-        txt = r.read().decode("utf-8")
-        return json.loads(txt) if txt else []
+    last=None
+    for i in range(tries):
+        try:
+            req = urllib.request.Request(url, data=data, headers=headers, method=method)
+            with urllib.request.urlopen(req, timeout=30) as r:
+                txt = r.read().decode("utf-8")
+                return json.loads(txt) if txt else []
+        except (urllib.error.URLError, TimeoutError) as e:
+            last=e; print(f"  Supabase ağ hatası ({i+1}/{tries}): {e}; tekrar deneniyor..."); time.sleep(3)
+    raise last
 
 def main():
     if not SUPABASE_URL or not SERVICE_KEY:
@@ -207,5 +219,8 @@ if __name__ == "__main__":
         main()
     except urllib.error.HTTPError as e:
         print("HTTP hata:", e.code, e.read().decode("utf-8", "ignore")); sys.exit(1)
+    except urllib.error.URLError as e:
+        # Geçici ağ/DNS hatası: bu turu atla, 5 dk sonra tekrar denenecek (kırmızı verme)
+        print("Geçici ağ hatası, bu tur atlandı:", e); sys.exit(0)
     except Exception as e:
         print("Hata:", repr(e)); sys.exit(1)
