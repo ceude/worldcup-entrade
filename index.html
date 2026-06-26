@@ -1287,18 +1287,15 @@ function buildStatCandidates(){
     const everyone = np>0 && predicted.length===np;
     const exactCount=rows.filter(r=>r.g && r.g.type==="exact").length;
     if(everyone && rows.every(r=>r.g && r.g.type==="bad"))
-      out.push({m, ic:"💀", title:"Bu maçta herkes yanıldı! Berbat 😅"});
+      out.push({id:m.id+"|allwrong", m, ic:"💀", title:"Bu maçta herkes yanıldı! Berbat 😅"});
     if(everyone && rows.every(r=>r.g && (r.g.type==="exact"||r.g.type==="outc")))
-      out.push({m, ic:"🎯", title:"Bu maçın sonucunu herkes bildi! Fevkalade 👏"});
+      out.push({id:m.id+"|allright", m, ic:"🎯", title:"Bu maçın sonucunu herkes bildi! Fevkalade 👏"});
     if(exactCount>=3)
-      out.push({m, ic:"🤯", title:`Bu maçın tam skorunu ${exactCount} kişi bildi! İnanılmaz 🔥`});
+      out.push({id:m.id+"|exact", m, ic:"🤯", title:`Bu maçın tam skorunu ${exactCount} kişi bildi! İnanılmaz 🔥`});
   });
   return out;
 }
-function showStatPopup(){
-  const cands=buildStatCandidates();
-  if(!cands.length) return false;
-  const c=cands[Math.floor(Math.random()*cands.length)];
+function showStatPopup(c){
   showPopup(`
     <button class="x" id="popupClose">✕</button>
     <div class="pop-ic">${c.ic}</div>
@@ -1306,15 +1303,25 @@ function showStatPopup(){
     <div class="pop-res">${esc(trName(c.m.team_home))} <b>${c.m.home_score}-${c.m.away_score}</b> ${esc(trName(c.m.team_away))}</div>
     <div class="mplist" style="padding:4px 0 14px;text-align:left">${matchPredListHTML(c.m)}</div>
     <button class="pop-btn" id="popupClose2">Kapat</button>`);
-  return true;
+}
+function getSeenStats(uid){
+  try{ return new Set(JSON.parse(localStorage.getItem("wcStatSeen_"+uid)||"[]")); }
+  catch(e){ return new Set(); }
+}
+function markStatSeen(uid,id){
+  try{ const s=getSeenStats(uid); s.add(id); localStorage.setItem("wcStatSeen_"+uid, JSON.stringify([...s])); }catch(e){}
 }
 function maybeShowOpeningPopup(){
   const open=myOpenUnpredicted();
   if(open.length){ showMissingPopup(open); return; }
-  const key="wcStatSeen_"+session.user.id;
-  let seen=false; try{ seen=localStorage.getItem(key)==="1"; }catch(e){}
-  if(seen) return;
-  if(showStatPopup()){ try{ localStorage.setItem(key,"1"); }catch(e){} }
+  // Eksik maç yoksa: henüz görülmemiş istatistiklerden rastgele BİR tanesi
+  const uid=session.user.id;
+  const seen=getSeenStats(uid);
+  const cands=buildStatCandidates().filter(c=>!seen.has(c.id));
+  if(!cands.length) return;
+  const c=cands[Math.floor(Math.random()*cands.length)];
+  showStatPopup(c);
+  markStatSeen(uid,c.id);
 }
 
 /* ====================================================================
