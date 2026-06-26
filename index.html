@@ -1259,33 +1259,41 @@ function shortDay(key){
 function computeProgression(){
   const players=profiles.filter(p=>!isHiddenUser(p.username)).slice()
     .sort((a,b)=>a.username.localeCompare(b.username));
-  const fin=matches.filter(m=>m.finished && new Date(m.kickoff)>=CUTOFF);
+  const fin=matches.filter(m=>m.finished && new Date(m.kickoff)>=CUTOFF)
+    .sort((a,b)=> new Date(a.kickoff)-new Date(b.kickoff));
+  if(!fin.length) return {events:[],series:[],hasData:false};
   const predBy={}; predsAll.forEach(p=>{ predBy[p.user_id+"|"+p.match_id]=p; });
-  const dayInc={}; let maxDay=CHART_START;
+
+  // Aynı başlama saatindeki maçları tek "olay" (nokta) olarak grupla
+  const map=new Map();
   fin.forEach(m=>{
-    let dk=berlinCalKey(m.kickoff); if(dk<CHART_START) dk=CHART_START;
-    if(dk>maxDay) maxDay=dk;
-    players.forEach(pl=>{
-      const g=grade(predBy[pl.id+"|"+m.id]||null,m); const pts=g?g.pts:0;
-      (dayInc[dk]||(dayInc[dk]={}))[pl.id]=((dayInc[dk]||{})[pl.id]||0)+pts;
-    });
+    const k=new Date(m.kickoff).getTime();
+    if(!map.has(k)) map.set(k,{t:k,iso:m.kickoff,ms:[]});
+    map.get(k).ms.push(m);
   });
-  // CHART_START → maxDay arası sürekli günler
-  const days=[]; let d=new Date(CHART_START+"T00:00:00Z"); const end=new Date(maxDay+"T00:00:00Z");
-  while(d<=end){ days.push(d.toISOString().slice(0,10)); d=new Date(d.getTime()+86400000); }
+  const evs=[...map.values()].sort((a,b)=>a.t-b.t);
+  const events=evs.map(ev=>({
+    t:ev.t,
+    day:berlinCalKey(ev.t),
+    time:new Date(ev.t).toLocaleTimeString("tr-TR",{timeZone:TZ,hour:"2-digit",minute:"2-digit"}),
+    count:ev.ms.length
+  }));
   const series=players.map(pl=>{
-    let cum=0; const pts=days.map(day=>{ cum+=(dayInc[day]&&dayInc[day][pl.id])||0; return cum; });
+    let cum=0;
+    const pts=evs.map(ev=>{
+      ev.ms.forEach(m=>{ const g=grade(predBy[pl.id+"|"+m.id]||null,m); cum+=g?g.pts:0; });
+      return cum;
+    });
     return {id:pl.id,name:pl.username,color:playerColors[pl.id]||"#9bb",pts};
   });
-  const hasData=fin.length>0;
-  return {days,series,hasData};
+  return {events,series,hasData:true};
 }
 
 let chartFocus=null; // odaklanılan oyuncu id'si (legend tıklayınca)
 function renderChart(){
   const box=$("#chartBox"); if(!box) return;
   assignColors();
-  const {days,series,hasData}=computeProgression();
+  const {events,series,hasData}=computeProgression();
   if(!hasData){
     box.innerHTML=`<div class="empty">Henüz puan kazanılan maç yok.<br><small style="opacity:.6">24 Haziran'dan itibaren maçlar bitince grafik dolmaya başlar.</small></div>`;
     return;
@@ -1293,7 +1301,7 @@ function renderChart(){
   // ölçek
   const W=720,H=380, padL=40,padR=54,padT=14,padB=30;
   const innerW=W-padL-padR, innerH=H-padT-padB;
-  const n=days.length;
+  const n=events.length;
   let yMax=0; series.forEach(s=>s.pts.forEach(v=>{ if(v>yMax)yMax=v; }));
   if(yMax<=0) yMax=10;
   const step=niceStep(yMax/4); const yTop=Math.ceil(yMax/step)*step || step;
@@ -1307,18 +1315,23 @@ function renderChart(){
     grid+=`<line class="gridline" x1="${padL}" y1="${y.toFixed(1)}" x2="${padL+innerW}" y2="${y.toFixed(1)}"/>`;
     ylbl+=`<text class="axislbl" x="${padL-7}" y="${(y+3).toFixed(1)}" text-anchor="end">${v}</text>`;
   }
-  // x labels (en fazla ~8)
-  const lblEvery=Math.max(1,Math.ceil(n/8)); let xlbl="";
-  days.forEach((dk,i)=>{ if(i%lblEvery===0 || i===n-1){
-    xlbl+=`<text class="axislbl" x="${X(i).toFixed(1)}" y="${H-padB+16}" text-anchor="middle">${esc(shortDay(dk))}</text>`;
-  }});
+  // x ekseni: her maç bir nokta; etiketler gün başlarına, gün değişiminde ince ayraç çizgisi
+  const dayStarts=[]; let prevDay=null;
+  events.forEach((e,i)=>{ if(e.day!==prevDay){ dayStarts.push(i); prevDay=e.day; } });
+  const dayEvery=Math.max(1,Math.ceil(dayStarts.length/9));
+  let xlbl="",sep="";
+  dayStarts.forEach((idx,k)=>{
+    const x=X(idx);
+    if(idx>0) sep+=`<line class="gridline" x1="${x.toFixed(1)}" y1="${padT}" x2="${x.toFixed(1)}" y2="${padT+innerH}" opacity=".5"/>`;
+    if(k%dayEvery===0) xlbl+=`<text class="axislbl" x="${x.toFixed(1)}" y="${H-padB+16}" text-anchor="middle">${esc(shortDay(events[idx].day))}</text>`;
+  });
   // çizgiler + noktalar + uç etiketleri
   const ranked=[...series].sort((a,b)=> b.pts[n-1]-a.pts[n-1]); // uç etiket çakışmasını azaltmak için
   let lines="";
   series.forEach(s=>{
     const pathPts=s.pts.map((v,i)=>`${X(i).toFixed(1)},${Y(v).toFixed(1)}`).join(" ");
-    const dots=s.pts.map((v,i)=> n<=1||i===n-1||i%lblEvery===0
-      ? `<circle class="pdot" cx="${X(i).toFixed(1)}" cy="${Y(v).toFixed(1)}" r="${i===n-1?4:2.6}" fill="${s.color}"/>` : "").join("");
+    const dots=s.pts.map((v,i)=>
+      `<circle class="pdot" cx="${X(i).toFixed(1)}" cy="${Y(v).toFixed(1)}" r="${i===n-1?4:2.2}" fill="${s.color}"/>`).join("");
     const endY=Y(s.pts[n-1]);
     lines+=`<g class="pseries" data-id="${s.id}">
       <polyline class="pline" points="${pathPts}" stroke="${s.color}"/>
@@ -1333,10 +1346,10 @@ function renderChart(){
   box.innerHTML=`
     <div class="chart-wrap">
       <div class="chart-head"><h2>📈 Puan Gidişatı</h2>
-        <span class="sub">24 Haziran → 19 Temmuz · her oyuncunun günlük toplam puanı</span></div>
+        <span class="sub">Her maç sonrası toplam puan · 24 Haziran → 19 Temmuz</span></div>
       <div class="chart-area" id="chartArea">
         <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet">
-          ${grid}${ylbl}${xlbl}
+          ${grid}${sep}${ylbl}${xlbl}
           <line class="hoverline" id="hoverLine" y1="${padT}" y2="${padT+innerH}"/>
           ${lines}
         </svg>
@@ -1370,7 +1383,9 @@ function renderChart(){
     const xPix=X(i);
     hl.setAttribute("x1",xPix); hl.setAttribute("x2",xPix); hl.style.opacity="1";
     const rows=series.map(s=>({name:s.name,color:s.color,v:s.pts[i]})).sort((a,b)=>b.v-a.v);
-    tip.innerHTML=`<div class="d">${esc(shortDay(days[i]))}</div>`+rows.map(r=>
+    const evp=events[i];
+    const head=`${esc(shortDay(evp.day))} · ${esc(evp.time)}${evp.count>1?` · ${evp.count} maç`:""}`;
+    tip.innerHTML=`<div class="d">${head}</div>`+rows.map(r=>
       `<div class="r"><i style="background:${r.color}"></i>${esc(r.name)}<span class="v">${r.v}</span></div>`).join("");
     tip.style.opacity="1";
     const leftPct=(xPix/W)*100;
