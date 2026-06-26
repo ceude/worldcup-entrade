@@ -92,6 +92,8 @@ a{color:var(--gold)}
 }
 #ribbon .it{font-size:12.5px;color:#cfe3d6;font-weight:600;display:inline-flex;gap:8px;align-items:center}
 #ribbon .it b{font-family:'Anton';font-weight:400;color:var(--gold);font-size:14px;letter-spacing:1px}
+#ribbon .it.daytag{color:var(--energy);font-weight:800;font-size:11px;letter-spacing:1.5px;text-transform:uppercase}
+#ribbon .it .rtime{color:var(--muted);font-weight:700;font-size:11.5px}
 
 /* ===== HEADER ===== */
 header.app{max-width:1180px;margin:0 auto;padding:22px 20px 6px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
@@ -1097,18 +1099,36 @@ function closeModal(){ $("#modal").classList.remove("show"); }
 /* ====================================================================
    11) RIBBON (maç sonuçları şeridi) — mobil uyumlu JS animasyonu
    ==================================================================== */
+function ribTime(iso){
+  return new Date(iso).toLocaleTimeString("tr-TR",{timeZone:TZ,hour:"2-digit",minute:"2-digit"});
+}
 function renderRibbon(){
-  const done=matches.filter(m=>m.finished).slice(-14);
-  const items = done.length?done:matches.filter(m=>m.team_home&&m.team_away).slice(0,14);
-  const cell=m=>{
-    if(m.finished) return `<span class="it">${esc(trName(m.team_home))} <b>${m.home_score}-${m.away_score}</b> ${esc(trName(m.team_away))}</span>`;
-    return `<span class="it">${esc(trName(m.team_home))} <b>vs</b> ${esc(trName(m.team_away))} · ${fmtKick(m.kickoff)}</span>`;
-  };
-  const seq=items.map(cell).join("");
-  // İçeriği üç kez tekrarlayarak kesintisiz döngü sağla (özellikle az öge varsa)
-  $("#ribbonTrack").innerHTML = seq+seq+seq;
+  // Maç günü: Almanya saatiyle (kickoff - 8s) tarihi → gece maçları o akşamın gününe sayılır
+  const todayK = matchDayKey(new Date());
+  const yestK  = matchDayKey(new Date(Date.now()-86400000));
+  const tomK   = matchDayKey(new Date(Date.now()+86400000));
+  const withTeams = matches.filter(m=>m.team_home && m.team_away);
+  const byKey = k => withTeams.filter(m=>matchDayKey(m.kickoff)===k)
+                              .sort((a,b)=>new Date(a.kickoff)-new Date(b.kickoff));
+  const yest=byKey(yestK), today=byKey(todayK), tom=byKey(tomK);
 
-  // CSS animasyonu mobilde çalışmıyorsa JS fallback
+  const tag = t => `<span class="it daytag">${t}</span>`;
+  const done = m => `<span class="it">${esc(trName(m.team_home))} <b>${m.home_score}-${m.away_score}</b> ${esc(trName(m.team_away))}</span>`;
+  const fix  = m => `<span class="it">${esc(trName(m.team_home))} <b>–</b> ${esc(trName(m.team_away))} <span class="rtime">${ribTime(m.kickoff)}</span></span>`;
+
+  const parts=[];
+  if(yest.length){ parts.push(tag("⬅️ DÜN")); yest.forEach(m=> parts.push(m.finished?done(m):fix(m))); }
+  if(today.length){ parts.push(tag("🔴 BUGÜN")); today.forEach(m=> parts.push(fix(m))); }
+  if(tom.length){ parts.push(tag("➡️ YARIN")); tom.forEach(m=> parts.push(fix(m))); }
+
+  // Hiç dün/bugün/yarın maçı yoksa: yaklaşan maçları göster
+  if(!parts.length){
+    const up=withTeams.filter(m=>new Date(m.kickoff)>=new Date()).sort((a,b)=>new Date(a.kickoff)-new Date(b.kickoff)).slice(0,8);
+    if(up.length){ parts.push(tag("YAKLAŞAN")); up.forEach(m=>parts.push(fix(m))); }
+  }
+
+  const seq=parts.join("");
+  $("#ribbonTrack").innerHTML = seq ? (seq+seq+seq) : `<span class="it" style="color:var(--muted)">Yakın tarihte maç yok</span>`;
   startRibbonScroll();
 }
 
