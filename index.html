@@ -251,6 +251,25 @@ nav.tabs button:hover{color:var(--ink)}
   box-shadow:0 -10px 16px -6px #0a1812}
 .pop-btn:hover{filter:brightness(1.05)}
 
+/* ===== İSTATİSTİKLER SEKMESİ ===== */
+.stats-h{font-size:22px;margin:4px 2px 4px}
+.stats-sub{font-size:13px;color:var(--muted);font-weight:600;margin:0 2px 16px}
+.stats-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:11px}
+@media(max-width:560px){.stats-grid{grid-template-columns:1fr}}
+.statcard{display:flex;align-items:center;gap:12px;text-align:left;width:100%;cursor:pointer;
+  background:linear-gradient(180deg,var(--panel),var(--panel2));border:1px solid var(--line);
+  border-left:3px solid var(--line2);border-radius:14px;padding:13px 14px;transition:all .15s}
+.statcard:hover{border-color:var(--line2);transform:translateY(-1px);box-shadow:0 8px 22px rgba(0,0,0,.3)}
+.statcard.ok{border-left-color:var(--ok)}
+.statcard.bad{border-left-color:var(--bad)}
+.statcard.warn{border-left-color:var(--energy)}
+.statcard .sc-ic{font-size:28px;line-height:1;flex:0 0 auto}
+.statcard .sc-body{min-width:0;flex:1}
+.statcard .sc-short{font-weight:800;font-size:14px;color:var(--ink);margin-bottom:3px}
+.statcard .sc-match{font-size:12.5px;color:#cbe0d2;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.statcard .sc-match b{font-family:'Anton';font-weight:400;color:var(--gold);letter-spacing:1px}
+.statcard .sc-meta{font-size:10.5px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-top:3px}
+
 /* ===== TAHMİNLERİM özet ===== */
 .mypsum{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:4px 0 18px}
 .mypsum .b{background:linear-gradient(180deg,var(--panel),var(--panel2));border:1px solid var(--line);
@@ -509,6 +528,7 @@ nav.tabs button:hover{color:var(--ink)}
     <button data-tab="how">Nasıl Oynanır</button>
     <button data-tab="leaderboard">Lider Tablosu</button>
     <button data-tab="chart">Grafik</button>
+    <button data-tab="stats">İstatistikler</button>
     <button data-tab="admin" id="adminTab" class="hidden">Yönetim</button>
   </nav>
 
@@ -572,6 +592,11 @@ nav.tabs button:hover{color:var(--ink)}
       <!-- CHART TAB -->
       <section id="tab-chart" class="hidden">
         <div id="chartBox"><div class="loading"><div class="spin"></div>Grafik hazırlanıyor…</div></div>
+      </section>
+
+      <!-- STATS TAB -->
+      <section id="tab-stats" class="hidden">
+        <div id="statsBox"></div>
       </section>
 
       <!-- ADMIN -->
@@ -1297,13 +1322,13 @@ function buildStatCandidates(){
     const exactCount=rows.filter(r=>r.g && r.g.type==="exact").length;
     const wrongCount=rows.filter(r=>r.g && r.g.type==="bad").length;
     if(everyone && wrongCount===rows.length)
-      out.push({id:m.id+"|allwrong", m, ic:"💀", title:"Bu maçta herkes yanıldı! Berbat"});
+      out.push({id:m.id+"|allwrong", m, ic:"💀", tone:"bad", short:"Herkes yanıldı", title:"Bu maçta herkes yanıldı! Berbat"});
     if(everyone && wrongCount===0)
-      out.push({id:m.id+"|allright", m, ic:"🎯", title:"Bu maçın sonucunu herkes bildi! Fevkalade"});
+      out.push({id:m.id+"|allright", m, ic:"🎯", tone:"ok", short:"Herkes bildi", title:"Bu maçın sonucunu herkes bildi! Fevkalade"});
     if(everyone && wrongCount===1)
-      out.push({id:m.id+"|onewrong", m, ic:"😬", title:"Bu maçın sonucunu sadece 1 kişi bilemedi! Talihsiz"});
+      out.push({id:m.id+"|onewrong", m, ic:"😬", tone:"warn", short:"1 kişi bilemedi", title:"Bu maçın sonucunu sadece 1 kişi bilemedi! Talihsiz"});
     if(exactCount>=3)
-      out.push({id:m.id+"|exact", m, ic:"🤯", title:`Bu maçın tam skorunu ${exactCount} kişi bildi! İnanılmaz`});
+      out.push({id:m.id+"|exact", m, ic:"🤯", tone:"ok", short:`${exactCount} kişi tam skoru bildi`, title:`Bu maçın tam skorunu ${exactCount} kişi bildi! İnanılmaz`});
   });
   return out;
 }
@@ -1322,6 +1347,32 @@ function getSeenStats(uid){
 }
 function markStatSeen(uid,id){
   try{ const s=getSeenStats(uid); s.add(id); localStorage.setItem("wcStatSeen_"+uid, JSON.stringify([...s])); }catch(e){}
+}
+let statCardList=[];
+function renderStats(){
+  const box=$("#statsBox"); if(!box) return;
+  // En yeni maç üstte; aynı maçın birden çok istatistiği yan yana kalsın
+  statCardList=buildStatCandidates().sort((a,b)=> new Date(b.m.kickoff)-new Date(a.m.kickoff));
+  if(!statCardList.length){
+    box.innerHTML=`<h2 class="stats-h">İlginç İstatistikler</h2>
+      <div class="empty">Henüz ilginç bir istatistik yok.<br><small style="opacity:.6">Maçlar sonuçlandıkça buraya düşmeye başlar.</small></div>`;
+    return;
+  }
+  const cards=statCardList.map((c,i)=>`
+    <button class="statcard ${esc(c.tone)}" data-statidx="${i}">
+      <div class="sc-ic">${c.ic}</div>
+      <div class="sc-body">
+        <div class="sc-short">${esc(c.short)}</div>
+        <div class="sc-match">${esc(trName(c.m.team_home))} <b>${c.m.home_score}-${c.m.away_score}</b> ${esc(trName(c.m.team_away))}</div>
+        <div class="sc-meta">${c.m.grp?`Grup ${esc(c.m.grp)}`:esc(STAGE_LABEL[c.m.stage]||"")} · ${esc(shortDay(berlinCalKey(c.m.kickoff)))}</div>
+      </div>
+    </button>`).join("");
+  box.innerHTML=`<h2 class="stats-h">İlginç İstatistikler</h2>
+    <p class="stats-sub">Bir karta dokun, o maçın tüm tahminlerini ve detayını gör.</p>
+    <div class="stats-grid">${cards}</div>`;
+  box.querySelectorAll("[data-statidx]").forEach(b=>b.onclick=()=>{
+    const c=statCardList[+b.dataset.statidx]; if(c) showStatPopup(c);
+  });
 }
 function maybeShowOpeningPopup(){
   const open=myOpenUnpredicted();
@@ -1639,6 +1690,7 @@ function switchTab(t){
   show($("#tab-how"),t==="how");
   show($("#tab-leaderboard"),t==="leaderboard");
   show($("#tab-chart"),t==="chart");
+  show($("#tab-stats"),t==="stats");
   show($("#tab-admin"),t==="admin");
   // mobilde Lider Tablosu sekmesindeyken sağdaki kopya tabloyu gizle
   $("#appScreen").classList.toggle("lb-tab", t==="leaderboard");
@@ -1646,6 +1698,7 @@ function switchTab(t){
   if(t==="leaderboard"){ renderLeaderboardTab(); }
   if(t==="mypicks"){ renderMyPicks(); }
   if(t==="chart"){ renderChart(); }
+  if(t==="stats"){ renderStats(); }
 }
 function renderLeaderboardTab(){
   const rows=buildLeaderboard();
@@ -1660,7 +1713,7 @@ function renderLeaderboardTab(){
 function renderAll(){
   assignColors();
   renderRibbon(); renderStageFilters(); renderGroupFilters(); renderSortFilters();
-  renderMatches(); renderMyPicks(); renderLeaderboard(); renderLeaderboardTab(); renderChart();
+  renderMatches(); renderMyPicks(); renderLeaderboard(); renderLeaderboardTab(); renderChart(); renderStats();
 }
 async function enterApp(){
   show($("#authScreen"),false); show($("#setupScreen"),false); show($("#appScreen"),true);
